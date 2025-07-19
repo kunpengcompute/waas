@@ -1,0 +1,45 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: waasbooster-daemon
+spec:
+  selector:
+    matchLabels:
+      app: waasbooster
+  template:
+    metadata:
+      labels:
+        app: waasbooster
+    spec:
+      # need high priority
+      priorityClassName: system-node-critical
+      # check processes to ensure all cgroups managed by us are created by docker/containerd/k8s
+      hostPID: true 
+      containers:
+      - name: waasbooster
+        image: waasbooster:1.0.0
+        imagePullPolicy: IfNotPresent
+        lifecycle:
+          preStop:
+            exec:
+              # wait waasbooster recover all quota
+              command: ["/bin/sh", "-c", "pkill -f cpu_booster.py; while pgrep -f cpu_booster.py > /dev/null; do sleep 1; done"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          runAsUser: 0 # need root to r/w cgroup info
+        volumeMounts:
+        - name: host-cgroup
+          mountPath: /sys/fs/cgroup
+          readOnly: false
+      terminationGracePeriodSeconds: 15
+      volumes:
+      - name: host-cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
