@@ -1,37 +1,29 @@
 # boostkit-waas
 
 #### 介绍
-用于开发和归档WAAS领域的蓝区开发的需求代码 
-
-#### 软件架构
-软件架构说明
+WAAS容器场景负载动态调度
 
 
-#### 安装教程
+#### 镜像构建
+该镜像基于python:3.9.9-slim构建，请确保构建环境中docker能够访问dockerhub拉取该基础镜像，或者手动下载导入。
+1.  clone本仓库并选择waasbooster分支
+```
+git clone -b waasbooster https://gitee.com/kunpeng_compute/boostkit-waas.git
+```
+2.  使用docker构建镜像
+```
+docker build -t waasbooster:1.0.0 .
+```
+构建中需要使用PIP安装python依赖，如果需要使用PIP代理，可以使用以下命令指定代理服务器
+注意：如果用户名或密码中存在特殊字符，按照docker标准需要使用'%%'进行转义而不是常用的'%'，例如'#'应被转义为'%%23'。
+```
+docker build --build-arg 'http://username:password@http.example.com:8080' -t waasbooster:1.0.0 .
+```
 
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 使用说明
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### 参与贡献
-
-1.  Fork 本仓库
-2.  新建 Feat_xxx 分支
-3.  提交代码
-4.  新建 Pull Request
-
-
-#### 特技
-
-1.  使用 Readme\_XXX.md 来支持不同的语言，例如 Readme\_en.md, Readme\_zh.md
-2.  Gitee 官方博客 [blog.gitee.com](https://blog.gitee.com)
-3.  你可以 [https://gitee.com/explore](https://gitee.com/explore) 这个地址来了解 Gitee 上的优秀开源项目
-4.  [GVP](https://gitee.com/gvp) 全称是 Gitee 最有价值开源项目，是综合评定出的优秀开源项目
-5.  Gitee 官方提供的使用手册 [https://gitee.com/help](https://gitee.com/help)
-6.  Gitee 封面人物是一档用来展示 Gitee 会员风采的栏目 [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+#### 使用K8s部署
+1.  将构建好的镜像导入工作节点可以访问的镜像仓库，或者手动导入各工作节点。
+2.  使能waasbooster
+```
+cd boostkit-waas
+kubectl apply -f deployment/waasbooster.yaml
+```
