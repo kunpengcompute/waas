@@ -11,7 +11,8 @@ class PIDController:
         self.integral = 0
         self.prev_err = 0
         self.prev_truth = None
-    
+
+
     def update(self, target, truth, dt):
         err = target - truth
 

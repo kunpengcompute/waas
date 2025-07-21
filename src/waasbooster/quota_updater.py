@@ -3,6 +3,7 @@
 import os
 import boost_log as logging
 
+
 def _update_parent_quota(parent_cgroup_path:str, quota_value:int):
     if not os.path.exists(parent_cgroup_path):
         return False
@@ -14,6 +15,7 @@ def _update_parent_quota(parent_cgroup_path:str, quota_value:int):
             with open(parent_cgroup_path, 'w') as q:
                 q.write(str(quota_value))
             return True
+
 
 def quota_updater(cgroup_path:str, quota):
     quota_value = int(quota)
