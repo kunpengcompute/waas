@@ -36,5 +36,5 @@ def quota_updater(cgroup_path:str, quota):
     except Exception as e:
         logging.error("Failed to update pod %s quota to %d, error: %s", cgroup_path, quota_value, e)
         return False
-
+    logging.info('Update pod: %s, quota: %s', cgroup_path, quota)
     return True

@@ -53,7 +53,7 @@ class QuotaBooster:
         self.data_collector_interval = data_collector_interval
         self.data_monitor_interval = data_monitor_interval
         self.container_update_queue = {}
-        self.quota_cor_mode = 'cor'
+        self.quota_cal_mode = 'cor'
         self.pid_dict = {}
         self.dt = 0.1
         self.pod_og_quota = {}
@@ -384,7 +384,7 @@ def booster_param_parser():
     parser.add_argument('--data-collect', type=bool, default=False, help='Data collect on/off')
     parser.add_argument('--data-collector-interval', type=int, default=600, help='Data collect interval in seconds')
     parser.add_argument('--data-monitor-interval', type=int, default=1, help='Data monitor interval in seconds')
-    parser.add_argument('--numa-balance-intercal', type=int, default=10, help='Numa balance interval in seconds')
+    parser.add_argument('--numa-balance-interval', type=int, default=10, help='Numa balance interval in seconds')
     args = parser.parse_args()
 
     return args
