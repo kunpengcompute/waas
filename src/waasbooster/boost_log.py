@@ -115,8 +115,8 @@ class Logger:
         self.logger.addHandler(fh)
         self.logger.addHandler(ch)
 
-        def get_logger(self):
-            return self.logger
+    def get_logger(self):
+        return self.logger
 
 
 def set_log_instance(log_level: str):
