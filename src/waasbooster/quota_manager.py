@@ -98,7 +98,7 @@ class QuotaManager:
             raise Exception(f"unknown file system {self.cgroup_version}")
             
     
-    def quota_approval(self, pod_quotas:dict, boosted_pods:dict, numa_cpu_utils:dict, pod_numa_nodes:dict):
+    def quota_approval(self, pod_quotas:dict, boosted_pods:dict, numa_cpu_utils:dict, pod_numa_nodes:dict, pod_forecast:dict):
         try:
             throttle_nodes = self._check_numa_util(numa_cpu_utils)
             if not throttle_nodes:
@@ -114,12 +114,12 @@ class QuotaManager:
                 if not boosted_pods:
                     pods_to_limit = _get_pods_to_limit(throttle_nodes, pod_quotas, pod_numa_nodes)
                     return {**pods_to_scale, **pods_to_limit}
-                logging.debug('[waasbooster] boosted pods: %s', boosted_pods)
+                logging.debug('boosted pods: %s', boosted_pods)
 
                 pods_to_balanced = self._get_pods_to_balance(throttle_nodes, boosted_pods, pod_numa_nodes)
-                logging.debug('[waasbooster] pods to balance: %s', pods_to_balanced)
+                logging.debug('pods to balance: %s', pods_to_balanced)
                 balanced_pods = self._balance_pods(pod_quotas, pods_to_balanced, pod_numa_nodes, 'numa')
-                logging.debug('[waasbooster] balanced pods: %s', balanced_pods)
+                logging.info('overhead numa node: %s, balanced pods: %s', throttle_nodes, balanced_pods)
                 output = {**pods_to_scale, **balanced_pods}
                 return output
 
@@ -155,11 +155,12 @@ class QuotaManager:
                 if node in pod_node:
                     pod_info = boosted_pods.get(pod_path)
                     pods_to_balance.update({pod_path: pod_info})
+        return pods_to_balance
 
 
     def _balance_pods_by_share(self, pod_shares, total_boost_quota, boosted_pods, pod_quotas, balanced_pod):
         pod_priority = {key: 10000 / value for key, value in pod_shares.items()}
-        total_pod_priority = sum(pod_priority.values)
+        total_pod_priority = sum(pod_priority.values())
         logging.debug('pod priority: %s', pod_priority)
 
         for pod_path, pod_ratio in pod_priority.items():
