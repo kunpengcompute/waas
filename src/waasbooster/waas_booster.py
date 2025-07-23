@@ -5,8 +5,11 @@ import os
 import shutil
 import signal
 import time
+import copy
 import threading
 import argparse
+from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 from cpu_monitor import CpuMonitor
 
 from quota_updater import quota_updater
@@ -15,6 +18,7 @@ import boost_log as logging
 from quota_manager import QuotaManager
 from data_collector import DataCollector
 from numa_cpu_monitor import NUMAMonitor
+from load_predictor import get_forecast_load
 import util
 from util import get_boosted_container_cgroups, get_container_info, AC_QUOTA, AVG_QUOTA_UTIL, CGROUP_QUOTA, \
                  EXPAND_MODE, SCALING_MODE, BT_QUOTA
@@ -27,7 +31,7 @@ class QuotaBooster:
     def __init__(self, monitor_interval=0.1, queue_max_len=15, refresh_interval=60, over_load_threshold=0.9,
                  down_load_threshold=0.3, expand_cor=1.2, scaling_cor=0.9, boost_interval=10, unboost_interval=30,
                  max_expand_limit=3.0, min_scaling_limit=1.0, data_collect=False, data_collector_interval=600,
-                 data_monitor_interval=1, numa_balance_interval=10):
+                 data_monitor_interval=1, numa_balance_interval=10, forecast=True):
         self.pid_file = os.path.join(util.WAAS_BOOSTER_MANAGER, 'waasbooster.pid')
         self.running = True
         self.monitor_interval = monitor_interval
@@ -42,7 +46,7 @@ class QuotaBooster:
         self.max_expand_limit = max_expand_limit
         self.min_scaling_limit = min_scaling_limit
         self.numa_balance_interval = numa_balance_interval
-        
+        self.forecast = forecast
         self.check_init_param()
 
         self.cpu_queue_dict = {}
@@ -64,6 +68,8 @@ class QuotaBooster:
         self.numa_balance_last_time = time.time()
         self.numa_balance_current_time = None
         self.sleep_interval = 0.1
+        self.pod_data = defaultdict(lambda: {'sum': 0, 'count': 0, 'last_processed_minute': None, 'half_hour_avg': deque(maxlen=7*48), 
+                                            'start_time': None, 'update': False, 'qualified': True})
 
         try: 
             self.pod_path, self.pod_nodes = self.get_all_pod()
@@ -71,6 +77,9 @@ class QuotaBooster:
             self.numa_monitor = NUMAMonitor()
             self.numa_monitor_thread = threading.Thread(target=self.numa_monitor.run)
             self.numa_monitor_thread.start()
+            if self.forecast:
+                self.load_collect_thread = threading.Thread(target=self.load_collect)
+                self.load_collect_thread.start()
         except Exception as e:
             logging.error('Init error occurred for %s', e)
             raise Exception(f'Init error occurred for: {e}') from e
@@ -155,6 +164,8 @@ class QuotaBooster:
             self.numa_monitor.stop()
         if self.numa_monitor_thread:
             self.numa_monitor_thread.join()
+        if self.load_collect_thread:
+            self.load_collect_thread.join()
     
     def monitor_container(self):
         self.cpu_util_queue_start()
@@ -172,16 +183,18 @@ class QuotaBooster:
             pod_update_quota_dict = {}
             numa_balance_dict = self.numa_balance()
             self.cpu_queue_dict = self.get_cpu_util_queue()
+            pod_forecast = self.load_forecast()
             # 检测是否存在pod符合quota调整条件
             pod_update_quota_dict = self.check_pod_status(self.cpu_queue_dict, pod_update_quota_dict)
             # 整体资源调整申请管理
-            if pod_update_quota_dict:
+            if pod_update_quota_dict or numa_balance_dict:
                 numa_cpu_util_dict = self.numa_monitor.get_numa_cpu_dict()
                 logging.debug('numa cpu util dict is %s', numa_cpu_util_dict)
                 pod_update_quota_dict = self.quota_manager.quota_approval(pod_update_quota_dict,
                                                                           self.boost_pod_record_dict,
                                                                           numa_cpu_util_dict,
-                                                                          self.pod_nodes)
+                                                                          self.pod_nodes,
+                                                                          pod_forecast)
                 pod_update_quota_dict = {**numa_balance_dict, **pod_update_quota_dict}
             
             if pod_update_quota_dict:
@@ -346,8 +359,56 @@ class QuotaBooster:
             pod_update_quota_dict = self.quota_manager.quota_approval({},
                                                                       self.boost_pod_record_dict,
                                                                       numa_cpu_util_dict,
-                                                                      self.pod_nodes)
+                                                                      self.pod_nodes,
+                                                                      {})
         return pod_update_quota_dict
+
+    def load_forecast(self):
+        pod_forecast = None
+        current_time = datetime.now(tz=timezone.utc) + timedelta(hours=8)
+        if current_time.hour == 0 and current_time.minute == 5 and self.forecast:
+            with self.lock:
+                pod_data = copy.copy(self.pod_data)
+            pod_forecast = get_forecast_load(pod_data)
+            logging.info('Pod forecast result is: %s', pod_data)
+        return pod_forecast
+
+
+    def load_collect(self):
+        """训练数据收集"""
+        while self.running:
+            current_time = datetime.now(tz=timezone.utc) + timedelta(hours=8)
+            if self.cpu_queue_dict:
+                for pod_path, pod_info in self.cpu_queue_dict.items():
+                    cpu_util = pod_info[util.CPU_UTIL]
+                    avg_cpu_util = sum(cpu_util) / len(cpu_util)
+                    self.pod_data[pod_path]['sum'] += avg_cpu_util
+                    self.pod_data[pod_path]['count'] += 1
+                    if self.pod_data[pod_path]['start_time'] is None:
+                        self.pod_data[pod_path]['start_time'] = current_time
+                    self.pod_data[pod_path]['update'] = True
+                    
+                    if (current_time.minute == 0 or current_time.minute == 30) and \
+                        self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
+                        if self.pod_data[pod_path]['qualified'] and \
+                        (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
+                            avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
+                            self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, avg_cpu_util_halfhour))
+                        else:
+                            self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, None))
+                        self.pod_data[pod_path]['sum'] = 0
+                        self.pod_data[pod_path]['count'] = 0
+                        self.pod_data[pod_path]['start_time'] = current_time
+                        self.pod_data[pod_path]['qualified'] = True
+                        self.pod_data[pod_path]['last_processed_minute'] = current_time.minute
+                        
+                for pod_path, pod_info in self.pod_data.items():
+                    if not pod_info['update']:
+                        self.pod_data[pod_path]['qualified'] = False
+                    self.pod_data[pod_path]['update'] = True
+            time.sleep(self.monitor_interval * self.queue_max_len)
+            logging.debug(f'self.pod_data is: {self.pod_data}')
+    
 
 
 def sigterm_handler(signum, frame):
@@ -385,6 +446,7 @@ def booster_param_parser():
     parser.add_argument('--data-collector-interval', type=int, default=600, help='Data collect interval in seconds')
     parser.add_argument('--data-monitor-interval', type=int, default=1, help='Data monitor interval in seconds')
     parser.add_argument('--numa-balance-interval', type=int, default=10, help='Numa balance interval in seconds')
+    parser.add_argument('--forecast', type=bool, default=True, help='load forecast on/off')
     args = parser.parse_args()
 
     return args
@@ -420,7 +482,8 @@ def cpu_booster_main():
             data_collect=args.data_collect,
             data_collector_interval=args.data_collector_interval,
             data_monitor_interval=args.data_monitor_interval,
-            numa_balance_interval=args.numa_balance_interval
+            numa_balance_interval=args.numa_balance_interval,
+            forecast=args.forecast
         )
         QB.init_service()
         cpu_thread = threading.Thread(target=QB.run)
