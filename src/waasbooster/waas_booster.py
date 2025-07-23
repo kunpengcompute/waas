@@ -489,6 +489,7 @@ def cpu_booster_main():
         cpu_thread = threading.Thread(target=QB.run)
         cpu_thread.start()
         logging.info('Waas Booster service start')
+        logging.info('Version: 1.0.0')
         while QB_RUNNING:
             if not QB_RUNNING:
                 break

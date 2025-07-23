@@ -23,7 +23,7 @@ spec:
           preStop:
             exec:
               # wait waasbooster recover all quota
-              command: ["/bin/sh", "-c", "pkill -f cpu_booster.py; while pgrep -f cpu_booster.py > /dev/null; do sleep 1; done"]
+              command: ["/bin/sh", "-c", "pkill -f waas_booster.py; while pgrep -f waas_booster.py > /dev/null; do sleep 1; done"]
         resources:
           requests:
             cpu: 100m

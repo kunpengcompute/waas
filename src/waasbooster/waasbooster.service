@@ -1,0 +1,16 @@
+[Unit]
+Description=Waasbooster daemon
+After=network.target
+
+[Service]
+Type=simple
+PIDFile=/run/waasbooster_manager/waasbooster.pid
+User=root
+Group=root
+KillMode=control-group
+Restart=always
+Environment="PYTHONPATH=/usr/local/waasbooster"
+ExecStart=/usr/local/waasbooster/bin/python3 /usr/local/waasbooster/waas_booster.py
+LimitNOFILE=infinity
+[Install]
+WantedBy=multi-user.target
