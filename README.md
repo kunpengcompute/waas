@@ -17,7 +17,14 @@ docker build -t waasbooster:1.0.0 .
 构建中需要使用PIP安装python依赖，如果需要使用PIP代理，可以使用以下命令指定代理服务器
 注意：如果用户名或密码中存在特殊字符，按照docker标准需要使用'%%'进行转义而不是常用的'%'，例如'#'应被转义为'%%23'。
 ```
-docker build --build-arg 'http://username:password@http.example.com:8080' -t waasbooster:1.0.0 .
+docker build --build-arg PIP_PROXY=http://username:password@http.example.com:8080 -t waasbooster:1.0.0 .
+```
+也可以指定PIP镜像源
+```
+docker build \
+    --build-arg PIP_MIRROR=http://mirror.example.com/pypi/simple \
+    --build-arg PIP_TRUST_HOST=http://mirror.example.com \
+    -t waasbooster:1.0.0 .
 ```
 
 #### 使用K8s部署

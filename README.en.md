@@ -1,36 +1,35 @@
 # boostkit-waas
 
 #### Description
-用于开发和归档WAAS领域的蓝区开发的需求代码 
+WAAS container quota dynamic optimization
 
-#### Software Architecture
-Software architecture description
+#### Build image
+build is based on python:3.9.9-slim.
+1.  clone waasbooster
+```
+git clone -b waasbooster https://gitee.com/kunpeng_compute/boostkit-waas.git
+```
+2.  build images by docker
+```
+docker build -t waasbooster:1.0.0 .
+```
+proxy can be used by giving build-arg PIP_PROXY.
+PS: if URL encodeing is needed, using '%%' for encoding instead if '%', eg: '%%23' for '#'.
+```
+docker build --build-arg PIP_PROXY=http://username:password@http.example.com:8080 -t waasbooster:1.0.0 .
+```
+PIP mirror is also supported
+```
+docker build \
+    --build-arg PIP_MIRROR=http://mirror.example.com/pypi/simple \
+    --build-arg PIP_TRUST_HOST=http://mirror.example.com \
+    -t waasbooster:1.0.0 .
+```
 
-#### Installation
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Instructions
-
-1.  xxxx
-2.  xxxx
-3.  xxxx
-
-#### Contribution
-
-1.  Fork the repository
-2.  Create Feat_xxx branch
-3.  Commit your code
-4.  Create Pull Request
-
-
-#### Gitee Feature
-
-1.  You can use Readme\_XXX.md to support different languages, such as Readme\_en.md, Readme\_zh.md
-2.  Gitee blog [blog.gitee.com](https://blog.gitee.com)
-3.  Explore open source project [https://gitee.com/explore](https://gitee.com/explore)
-4.  The most valuable open source project [GVP](https://gitee.com/gvp)
-5.  The manual of Gitee [https://gitee.com/help](https://gitee.com/help)
-6.  The most popular members  [https://gitee.com/gitee-stars/](https://gitee.com/gitee-stars/)
+#### K8s deployment
+1.  import waasbooster image in all work nodes
+2.  enable waasbooster in master node
+```
+cd boostkit-waas
+kubectl apply -f deployment/waasbooster.yaml
+```
