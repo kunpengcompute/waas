@@ -3,16 +3,27 @@ FROM python:3.9.9-slim as builder
 ARG PIP_PROXY
 #ARG PIP_PROXY="http://username:password@http.example.com:8080"
 
-ARG PACKAGES="numpy pandas pmdarima statsmodels"
-
-RUN if [ -n "${PIP_PROXY}" ]; then \
-        pip install ${PACKAGES} --no-cache-dir --proxy ${PIP_PROXY}; \
-    else \
-        pip install ${PACKAGES} --no-cache-dir; \
-    fi
+ARG PIP_MIRROR
+ARG PIP_TRUST_HOST
+#ARG PIP_MIRROR="http://mirror.example.com/pypi/simple"
+#ARG PIP_TRUST_HOST="http://mirror.example.com"
 
 WORKDIR /app
 
+COPY requirements.txt ./
+
+ARG PIP_BASE_CMD="pip install -r requirements.txt --no-cache-dir"
+
+RUN install_cmd="${PIP_BASE_CMD}"; \
+    if [ -n "${PIP_PROXY}" ]; then \
+        install_cmd="${install_cmd} --proxy ${PIP_PROXY}"; \
+    fi; \
+    if [ -n "${PIP_MIRROR}" ]; then \
+        install_cmd="${install_cmd} -i ${PIP_MIRROR} --trusted-host ${PIP_TRUST_HOST}"; \
+    fi; \
+    echo "install command: ${install_cmd}"; \
+    eval "${install_cmd}"
+
 COPY src/waasbooster/*.py ./
 
-CMD ["python", "cpu_booster.py"]
+CMD ["python", "waas_booster.py"]
