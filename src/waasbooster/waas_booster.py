@@ -229,6 +229,7 @@ class QuotaBooster:
             for path in pod_path:
                 if path not in self.pod_path:
                     logging.info('new pod %s is being monitored', path)
+                    self.pod_og_quota.update({path: int(get_container_info(path, CGROUP_QUOTA))})
             self.pod_path = pod_path
             # 停止监控
             try:
@@ -380,28 +381,31 @@ class QuotaBooster:
             current_time = datetime.now(tz=timezone.utc) + timedelta(hours=8)
             if self.cpu_queue_dict:
                 for pod_path, pod_info in self.cpu_queue_dict.items():
-                    cpu_util = pod_info[util.CPU_UTIL]
-                    avg_cpu_util = sum(cpu_util) / len(cpu_util)
-                    self.pod_data[pod_path]['sum'] += avg_cpu_util
-                    self.pod_data[pod_path]['count'] += 1
-                    if self.pod_data[pod_path]['start_time'] is None:
-                        self.pod_data[pod_path]['start_time'] = current_time
-                    self.pod_data[pod_path]['update'] = True
-                    
-                    if (current_time.minute == 0 or current_time.minute == 30) and \
-                        self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
-                        if self.pod_data[pod_path]['qualified'] and \
-                        (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
-                            avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
-                            self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, avg_cpu_util_halfhour))
-                        else:
-                            self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, None))
-                        self.pod_data[pod_path]['sum'] = 0
-                        self.pod_data[pod_path]['count'] = 0
-                        self.pod_data[pod_path]['start_time'] = current_time
-                        self.pod_data[pod_path]['qualified'] = True
-                        self.pod_data[pod_path]['last_processed_minute'] = current_time.minute
+                    try:
+                        cpu_util = pod_info[util.CPU_UTIL]
+                        avg_cpu_util = sum(cpu_util) / len(cpu_util)
+                        self.pod_data[pod_path]['sum'] += avg_cpu_util
+                        self.pod_data[pod_path]['count'] += 1
+                        if self.pod_data[pod_path]['start_time'] is None:
+                            self.pod_data[pod_path]['start_time'] = current_time
+                        self.pod_data[pod_path]['update'] = True
                         
+                        if (current_time.minute == 0 or current_time.minute == 30) and \
+                            self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
+                            if self.pod_data[pod_path]['qualified'] and \
+                            (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
+                                avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
+                                self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, avg_cpu_util_halfhour))
+                            else:
+                                self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, None))
+                            self.pod_data[pod_path]['sum'] = 0
+                            self.pod_data[pod_path]['count'] = 0
+                            self.pod_data[pod_path]['start_time'] = current_time
+                            self.pod_data[pod_path]['qualified'] = True
+                            self.pod_data[pod_path]['last_processed_minute'] = current_time.minute
+                    except Exception as e:
+                        logging.debug('collect data lacking: %s', e)
+                        continue
                 for pod_path, pod_info in self.pod_data.items():
                     if not pod_info['update']:
                         self.pod_data[pod_path]['qualified'] = False
