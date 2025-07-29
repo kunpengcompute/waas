@@ -6,6 +6,7 @@ import shutil
 import signal
 import time
 import copy
+import json
 import threading
 import argparse
 from collections import defaultdict, deque
@@ -33,6 +34,7 @@ class QuotaBooster:
                  max_expand_limit=3.0, min_scaling_limit=1.0, data_collect=False, data_collector_interval=600,
                  data_monitor_interval=1, numa_balance_interval=10, forecast=True):
         self.pid_file = os.path.join(util.WAAS_BOOSTER_MANAGER, 'waasbooster.pid')
+        self.init_quota_file = os.path.join(util.WAAS_BOOSTER_MANAGER, 'init_quota.json')
         self.running = True
         self.monitor_interval = monitor_interval
         self.queue_max_len = queue_max_len
@@ -149,6 +151,7 @@ class QuotaBooster:
             self.quota_manager = QuotaManager()
             self.monitor_container()
             self.restore_init_quota()
+            self.cleanup()
         except Exception as e:
             logging.error('cpu booster run error occurred for %s', e)
             raise Exception(f'cpu booster error for: {e}') from e
@@ -166,6 +169,37 @@ class QuotaBooster:
             self.numa_monitor_thread.join()
         if self.load_collect_thread:
             self.load_collect_thread.join()
+    
+    def init_quota_record(self, quota_dict):
+        try:
+            with open(self.init_quota_file, 'w', encoding='utf-8') as file:
+                file.write(json.dumps(quota_dict, indent=4))
+        except Exception as e:
+            logging.warning('Init quota record failed for: %s', e)
+            return False
+        return True
+
+    def init_quota_load(self):
+        init_quota = {}
+        if not os.path.exists(self.init_quota_file):
+            return init_quota
+        else:
+            try:
+                with open(self.init_quota_file, 'r', encoding='utf-8') as file:
+                    init_quota = json.load(file)
+            except Exception as e:
+                logging.warning('Init quota load failed for: %s', e)
+            return init_quota
+
+    def cleanup(self):
+        try:
+            if os.path.exists(self.pid_file):
+                os.remove(self.pid_file)
+            if os.path.exists(self.init_quota_file):
+                os.remove(self.init_quota_file)
+        except Exception as e:
+            logging.warning('Cleanup failed for: %s', e)
+        
     
     def monitor_container(self):
         self.cpu_util_queue_start()
@@ -222,6 +256,7 @@ class QuotaBooster:
         return pod_update_quota_dict
 
     def refresh_pod_path(self):
+        init_quota_record = False
         logging.debug('start refresh pod path')
         pod_path, self.pod_nodes = self.get_all_pod()
         if pod_path != self.pod_path:
@@ -230,6 +265,7 @@ class QuotaBooster:
                 if path not in self.pod_path:
                     logging.info('new pod %s is being monitored', path)
                     self.pod_og_quota.update({path: int(get_container_info(path, CGROUP_QUOTA))})
+                    init_quota_record = True
             self.pod_path = pod_path
             # 停止监控
             try:
@@ -243,6 +279,8 @@ class QuotaBooster:
                 logging.error(f'failed to stop CPU monitor: {e}')
             # 启动新队列
             self.cpu_util_queue_start()
+        if init_quota_record:
+            _ = self.init_quota_record(self.pod_og_quota)
         logging.debug('finish refresh pod path')
         
         return pod_path
@@ -345,9 +383,14 @@ class QuotaBooster:
         logging.info('restore pod init quota succeed')
 
     def get_pod_og_quota(self):
+        init_quota_dict = self.init_quota_load()
+        logging.info('init_quota_dict is: %s', init_quota_dict)
+        pod_og_quota = {}
         for path in self.pod_path:
-            if path not in self.pod_og_quota:
-                self.pod_og_quota.update({path: int(get_container_info(path, CGROUP_QUOTA))})
+            pod_og_quota.update({path: int(get_container_info(path, CGROUP_QUOTA))})
+        self.pod_og_quota = {**pod_og_quota, **init_quota_dict}
+        logging.info('self.pod_og_quota is: %s', self.pod_og_quota)
+        _ = self.init_quota_record(self.pod_og_quota)
         return self.pod_og_quota
 
     def numa_balance(self):
@@ -423,9 +466,6 @@ def sigterm_handler(signum, frame):
         QB.stop()
     except Exception as e:
         logging.error('Waas booster stop failed for %s', e)
-    if os.path.exists(util.WAAS_BOOSTER_MANAGER):
-        shutil.rmtree(util.WAAS_BOOSTER_MANAGER)
-        logging.debug('Waas booster manager deleted')
     QB_RUNNING = False
     logging.info('Waas booster exitted')
 
@@ -469,8 +509,6 @@ def cpu_booster_main():
         logging.set_log_instance(args.log_level)
         logging.info('Initialize log module, log level set {}'.format(args.log_level))
         # 创建管理文件
-        if os.path.exists(util.WAAS_BOOSTER_MANAGER):
-            shutil.rmtree(util.WAAS_BOOSTER_MANAGER)
         os.makedirs(util.WAAS_BOOSTER_MANAGER)
         QB = QuotaBooster(
             monitor_interval=args.monitor_interval,

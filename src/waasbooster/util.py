@@ -7,7 +7,7 @@ import time
 import boost_log as logging
 
 
-WAAS_BOOSTER_MANAGER = '/run/waasbooster_manager/'
+WAAS_BOOSTER_MANAGER = '/var/run/waasbooster_manager/'
 DATA_PATH = '/var/waasbooster/'
 LOG_LEVEL_INFO = 'INFO'
 LOG_LEVEL_DEBUG = 'DEBUG'
