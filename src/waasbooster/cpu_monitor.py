@@ -73,7 +73,7 @@ class CpuMonitor:
         time.sleep(interval)
 
         while self.running:
-            self.cpu_util_cal(containers, samples, interval)
+            _ = self.cpu_util_cal(containers, samples, interval)
         
         logging.debug('cpu monitor stop.')
 
@@ -125,3 +125,5 @@ class CpuMonitor:
 
         # 等待下一个采样周期
         time.sleep(interval)
+        
+        return self.container_info_queue_dict
