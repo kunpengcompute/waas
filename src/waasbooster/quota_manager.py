@@ -60,25 +60,12 @@ def _get_pods_to_scale(throttle_numa_nodes:dict, pod_quotas:dict, pod_numa_nodes
     return scalable_pods
 
 
-def _merge_pod_node_and_quota(boosted_pods:dict, pod_numa_nodes:dict):
-    pod_dict = {}
-    if not boosted_pods or not pod_numa_nodes:
-        return pod_dict
-    else:
-        pod_dict = boosted_pods
-        for pod_path, pod_info in pod_dict.items():
-            try:
-                pod_info.update({'cpuset': pod_numa_nodes.get(pod_path)})
-            except KeyError as ke:
-                logging.warning('faile to merge pod quota and node, error: %s', ke)
-        return pod_dict
-
-
 def _get_overload_pods(pod_path, pod_quotas, pod_dict):
     if pod_path in pod_quotas.keys():
         pod_info = pod_quotas.get(pod_path)
         if pod_info.get(AC_QUOTA) > pod_info.get(BT_QUOTA):
             pod_dict.update({pod_path: pod_info})
+    return pod_dict
 
 
 class QuotaManager:
@@ -205,7 +192,7 @@ class QuotaManager:
                 else:
                     raise Exception(f"unknown mode:{mode} to balance pods")
             else:
-                _get_overload_pods(pod_path, pod_quotas, balanced_pod)
+                balanced_pod = _get_overload_pods(pod_path, pod_quotas, balanced_pod)
 
         if not pod_shares:
             return balanced_pod
