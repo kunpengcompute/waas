@@ -801,5 +801,288 @@ class TestReadFile(unittest.TestCase):
         mock_file.assert_called_once_with('/proc/stat', 'r')
 
 
+    @patch("builtins.open", new_callable=mock_open)
+    def test_read_file_empty(self, mock_file):
+        # 模拟文件内容为空
+        mock_file.return_value.read.return_value = ""
+        
+        # 调用函数并断言
+        result = read_file()
+        
+        # 文件为空，应该返回 None
+        self.assertIsNone(result)
+
+        # 确保文件被打开
+        mock_file.assert_called_once_with('/proc/stat', 'r')
+
+    @patch("builtins.open", new_callable=mock_open)
+    def test_read_file_missing_columns(self, mock_file):
+        # 模拟文件内容，列数不对
+        mock_file.return_value.read.return_value = "cpu 100 50 200 300\n"  # 缺少其它列
+        
+        # 调用函数并断言
+        result = read_file()
+        
+        # 不符合预期格式，应该返回 None
+        self.assertIsNone(result)
+
+        # 确保文件被打开
+        mock_file.assert_called_once_with('/proc/stat', 'r')
+
+class TestGetCpuUsage(unittest.TestCase):
+
+    @patch("util.read_cpu_stats")
+    @patch("time.sleep", return_value=None)  # 阻止真实的时间等待
+    def test_get_cpu_usage_success(self, mock_sleep, mock_read_cpu_stats):
+        # 模拟第一次读取的 CPU 状态
+        mock_read_cpu_stats.side_effect = [
+            {'idle': 100, 'total': 1000},  # 第一次读取
+            {'idle': 120, 'total': 1100}   # 第二次读取
+        ]
+        
+        # 调用函数并断言
+        result = get_cpu_usage(interval=1)
+        
+        # 计算 CPU 使用率: (total_diff - idle_diff) / total_diff * 100
+        # (1100 - 1000) - (120 - 100) = 100 - 20 = 80
+        # CPU 使用率 = (80 / 100) * 100 = 80.0
+        self.assertEqual(result, 80.0)
+
+    @patch("util.read_cpu_stats")
+    @patch("time.sleep", return_value=None)
+    def test_get_cpu_usage_none_initial(self, mock_sleep, mock_read_cpu_stats):
+        # 模拟第一次读取返回 None
+        mock_read_cpu_stats.side_effect = [None, {'idle': 120, 'total': 1100}]
+        
+        # 调用函数并断言
+        result = get_cpu_usage(interval=1)
+        
+        # 初始读取返回 None，函数应返回 None
+        self.assertIsNone(result)
+
+    @patch("util.read_cpu_stats")
+    @patch("time.sleep", return_value=None)
+    def test_get_cpu_usage_none_final(self, mock_sleep, mock_read_cpu_stats):
+        # 模拟第一次读取有效，第二次读取返回 None
+        mock_read_cpu_stats.side_effect = [{'idle': 100, 'total': 1000}, None]
+        
+        # 调用函数并断言
+        result = get_cpu_usage(interval=1)
+        
+        # 第二次读取返回 None，函数应返回 None
+        self.assertIsNone(result)
+
+    @patch("util.read_cpu_stats")
+    @patch("time.sleep", return_value=None)
+    def test_get_cpu_usage_zero_diff(self, mock_sleep, mock_read_cpu_stats):
+        # 模拟两次读取相同的数据
+        mock_read_cpu_stats.side_effect = [
+            {'idle': 100, 'total': 1000},  # 第一次读取
+            {'idle': 100, 'total': 1000}   # 第二次读取
+        ]
+        
+        # 调用函数并断言
+        result = get_cpu_usage(interval=1)
+        
+        # 因为 total_diff 为 0，使用率应该是 0.0
+        self.assertEqual(result, 0.0)
+
+
+class TestParseCpuAffinity(unittest.TestCase):
+
+    @patch('logging.error')
+    def test_parse_cpu_affinity_valid(self, mock_logging):
+        # 测试有效的核心范围
+        affinity_str = "0-3, 5, 7-9"
+        result = parse_cpu_affinity(affinity_str)
+        expected_result = [0, 1, 2, 3, 5, 7, 8, 9]
+        
+        # 断言返回的列表与期望的列表一致
+        self.assertEqual(result, expected_result)
+        
+        # 确保没有记录错误日志
+        mock_logging.assert_not_called()
+
+    @patch('logging.error')
+    def test_parse_cpu_affinity_empty(self, mock_logging):
+        # 测试输入为空字符串
+        affinity_str = ""
+        result = parse_cpu_affinity(affinity_str)
+        
+        # 断言返回空列表
+        self.assertEqual(result, [])
+        
+        # 确保没有记录错误日志
+        mock_logging.assert_not_called()
+
+    @patch('logging.error')
+    def test_parse_cpu_affinity_invalid_range(self, mock_logging):
+        # 测试无效的范围格式
+        affinity_str = "0-3, 5, 7-9, 10--15"
+        result = parse_cpu_affinity(affinity_str)
+        expected_result = [0, 1, 2, 3, 5, 7, 8, 9]
+        
+        # 由于 "10--15" 是无效的，应忽略并返回有效部分
+        self.assertEqual(result, expected_result)
+
+
+    @patch('logging.error')
+    def test_parse_cpu_affinity_invalid_core(self, mock_logging):
+        # 测试无效的核心数字格式
+        affinity_str = "0-3, 5, abc, 7-9"
+        result = parse_cpu_affinity(affinity_str)
+        expected_result = [0, 1, 2, 3, 5, 7, 8, 9]
+        
+        # 由于 "abc" 是无效的，应忽略并返回有效部分
+        self.assertEqual(result, expected_result)
+
+
+    @patch('logging.error')
+    def test_parse_cpu_affinity_extra_spaces(self, mock_logging):
+        # 测试多余空格
+        affinity_str = "  0-3 ,  5  ,   7-9  "
+        result = parse_cpu_affinity(affinity_str)
+        expected_result = [0, 1, 2, 3, 5, 7, 8, 9]
+        
+        # 断言返回的列表去除了多余的空格
+        self.assertEqual(result, expected_result)
+
+class TestMapCoresToNUMA(unittest.TestCase):
+
+    def test_map_cores_to_numa_valid(self):
+        # 测试有效的核心映射
+        cores = [0, 2, 4, 6, 7]
+        numa_info = {
+            0: "0-3",
+            1: "4-7",
+            2: "8-11"
+        }
+        result = map_cores_to_numa(cores, numa_info)
+        expected_result = [0, 1]  # 核心 0, 2, 4, 6, 7 映射到 NUMA 节点 0 和 1
+        
+        self.assertEqual(sorted(result), sorted(expected_result))
+
+    def test_map_cores_to_numa_no_match(self):
+        # 测试核心不在任何 NUMA 节点范围内
+        cores = [12, 14]
+        numa_info = {
+            0: "0-3",
+            1: "4-7",
+            2: "8-11"
+        }
+        result = map_cores_to_numa(cores, numa_info)
+        
+        # 核心 10, 12, 14 不在任何 NUMA 节点的范围内，结果应该为空
+        self.assertEqual(result, [])
+
+    def test_map_cores_to_numa_multiple_nodes(self):
+        # 测试多个 NUMA 节点映射
+        cores = [2, 4, 8, 9, 10]
+        numa_info = {
+            0: "0-3",
+            1: "4-7",
+            2: "8-11"
+        }
+        result = map_cores_to_numa(cores, numa_info)
+        expected_result = [0, 1, 2]  # 核心 2, 4 映射到节点 1，核心 8, 9, 10 映射到节点 2
+        
+        self.assertEqual(sorted(result), sorted(expected_result))
+
+    def test_map_cores_to_numa_empty_input(self):
+        # 测试输入为空
+        cores = []
+        numa_info = {
+            0: "0-3",
+            1: "4-7",
+            2: "8-11"
+        }
+        result = map_cores_to_numa(cores, numa_info)
+        
+        # 输入为空，返回空列表
+        self.assertEqual(result, [])
+
+    def test_map_cores_to_numa_invalid_data(self):
+        # 测试无效的 NUMA 范围
+        cores = [1, 5, 8]
+        numa_info = {
+            0: "0-3",
+            1: "4-4",  # 无效的范围
+            2: "8-11"
+        }
+        result = map_cores_to_numa(cores, numa_info)
+        
+        # 由于 NUMA 范围无效，结果应该只映射有效的核心
+        expected_result = [0, 2]  # 核心 1 映射到节点 0，核心 8 映射到节点 2
+        self.assertEqual(sorted(result), sorted(expected_result))
+
+
+class TestIsNUMAMultiple(unittest.TestCase):
+
+    def test_is_numa_multiple_valid(self):
+        # 测试核心完全属于一个完整的 NUMA 节点
+        affinity_str = "0, 1, 2, 3"
+        numa_info = {
+            0: "0-3",  # NUMA 节点 0 包含核心 0 到 3
+            1: "4-7",
+            2: "8-11"
+        }
+        result = is_numa_multiple(affinity_str, numa_info)
+        
+        # 核心 [0, 1, 2, 3] 完全属于 NUMA 节点 0，返回 True 和节点 0
+        self.assertEqual(result, (True, [0]))
+
+    def test_is_numa_multiple_multiple_nodes(self):
+        # 测试核心属于多个 NUMA 节点，且每个节点的所有核心都被包含
+        affinity_str = "0, 1, 2, 3, 4, 5, 6, 7"
+        numa_info = {
+            0: "0-3",  # NUMA 节点 0 包含核心 0 到 3
+            1: "4-7",  # NUMA 节点 1 包含核心 4 到 7
+            2: "8-11"
+        }
+        result = is_numa_multiple(affinity_str, numa_info)
+        
+        # 核心 [0, 1] 属于 NUMA 节点 0，核心 [4, 5] 属于 NUMA 节点 1，返回 True 和节点 [0, 1]
+        self.assertEqual(result, (True, [0, 1]))
+
+    def test_is_numa_multiple_invalid_node(self):
+        # 测试核心不属于任何 NUMA 节点
+        affinity_str = "8, 9, 10, 11"
+        numa_info = {
+            0: "0-3",  # NUMA 节点 0 包含核心 0 到 3
+            1: "4-7",  # NUMA 节点 1 包含核心 4 到 7
+            2: "8-11"  # NUMA 节点 2 包含核心 8 到 11
+        }
+        result = is_numa_multiple(affinity_str, numa_info)
+        
+        # 核心 [10, 11] 属于 NUMA 节点 2，返回 True 和节点 2
+        self.assertEqual(result, (True, [2]))
+
+    def test_is_numa_multiple_partial_core_not_in_range(self):
+        # 测试部分核心不属于给定的 NUMA 节点
+        affinity_str = "0, 1, 5, 6"
+        numa_info = {
+            0: "0-3",  # NUMA 节点 0 包含核心 0 到 3
+            1: "4-7",  # NUMA 节点 1 包含核心 4 到 7
+            2: "8-11"
+        }
+        result = is_numa_multiple(affinity_str, numa_info)
+        
+        # 核心 [0, 1] 属于 NUMA 节点 0，核心 [5, 6] 属于 NUMA 节点 1，但 NUMA 节点 1 只包含 4-7，返回 False
+        self.assertEqual(result, (False, []))
+
+    def test_is_numa_multiple_empty_input(self):
+        # 测试空输入
+        affinity_str = ""
+        numa_info = {
+            0: "0-3",
+            1: "4-7",
+            2: "8-11"
+        }
+        result = is_numa_multiple(affinity_str, numa_info)
+        
+        # 空输入，返回 False 和空列表
+        self.assertEqual(result, (True, []))
+
+        
 if __name__ == "__main__":
     unittest.main()
