@@ -121,6 +121,10 @@ class QuotaBooster:
             raise ValueError('unboost_interval must be greater than monitor_interval * {}'.format(self.queue_max_len))
         if self.queue_max_len <= 10:
             raise ValueError('queue_max_len must be greater than 10')
+        if self.forecast:
+            logging.info('Pod forecast function turn on')
+        elif not self.forecast:
+            logging.info('Pod forecast function turn off')
 
     def init_service(self):
         self.write_pid_file()
