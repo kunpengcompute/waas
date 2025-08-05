@@ -88,6 +88,7 @@ class QuotaManager:
     def quota_approval(self, pod_quotas:dict, boosted_pods:dict, numa_cpu_utils:dict, pod_numa_nodes:dict, pod_forecast:dict):
         try:
             throttle_nodes = self._check_numa_util(numa_cpu_utils)
+            logging.debug('pod_forecast is:', pod_forecast)
             if not throttle_nodes:
                 return pod_quotas
             elif 'all' in throttle_nodes.keys():
