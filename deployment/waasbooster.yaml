@@ -19,6 +19,8 @@ spec:
       - name: waasbooster
         image: waasbooster:1.0.0
         imagePullPolicy: IfNotPresent
+        # command: ["/bin/sh", "-c", "--"]  # turn off the forecast function
+        # args: ["python /app/waasbooster.py --forecast False; while true; do sleep 3; done;"]  # turn off the forecast function
         lifecycle:
           preStop:
             exec:
@@ -37,9 +39,16 @@ spec:
         - name: host-cgroup
           mountPath: /sys/fs/cgroup
           readOnly: false
+        - name: host-cgroup
+          mountPath: /var/run
+          readOnly: false
       terminationGracePeriodSeconds: 15
       volumes:
       - name: host-cgroup
         hostPath:
           path: /sys/fs/cgroup
+          type: Directory
+      - name: host-var
+        hostPath:
+          path: /var/run
           type: Directory
