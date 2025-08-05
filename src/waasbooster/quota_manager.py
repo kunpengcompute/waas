@@ -95,7 +95,7 @@ class QuotaManager:
                 if not boosted_pods:
                     return _get_pods_to_limit(throttle_nodes, pod_quotas, pod_numa_nodes)
                 balanced_pods = self._balance_pods(pod_quotas, boosted_pods, pod_numa_nodes, 'all')
-                logging.info('Host cpu overwhelm, balanced pos: %s', balanced_pods)
+                logging.info('Host cpu overwhelm, balanced pods: %s', balanced_pods)
                 return balanced_pods
             else:
                 pods_to_scale = _get_pods_to_scale(throttle_nodes, pod_quotas, pod_numa_nodes)
