@@ -22,7 +22,7 @@ from numa_cpu_monitor import NUMAMonitor
 from load_predictor import get_forecast_load
 import util
 from util import get_boosted_container_cgroups, get_container_info, AC_QUOTA, AVG_QUOTA_UTIL, CGROUP_QUOTA, \
-                 EXPAND_MODE, SCALING_MODE, BT_QUOTA
+                 EXPAND_MODE, SCALING_MODE, BT_QUOTA, str2bool
 
 QB = None
 QB_RUNNING = True
@@ -70,6 +70,7 @@ class QuotaBooster:
         self.numa_balance_last_time = time.time()
         self.numa_balance_current_time = None
         self.sleep_interval = 0.1
+        self.last_forecast_time = None
         self.pod_data = defaultdict(lambda: {'sum': 0, 'count': 0, 'last_processed_minute': None, 'half_hour_avg': deque(maxlen=7*48), 
                                             'start_time': None, 'update': False, 'qualified': True})
 
@@ -388,12 +389,12 @@ class QuotaBooster:
 
     def get_pod_og_quota(self):
         init_quota_dict = self.init_quota_load()
-        logging.info('init_quota_dict is: %s', init_quota_dict)
+        logging.debug('init_quota_dict is: %s', init_quota_dict)
         pod_og_quota = {}
         for path in self.pod_path:
             pod_og_quota.update({path: int(get_container_info(path, CGROUP_QUOTA))})
         self.pod_og_quota = {**pod_og_quota, **init_quota_dict}
-        logging.info('self.pod_og_quota is: %s', self.pod_og_quota)
+        logging.debug('self.pod_og_quota is: %s', self.pod_og_quota)
         _ = self.init_quota_record(self.pod_og_quota)
         return self.pod_og_quota
 
@@ -415,11 +416,16 @@ class QuotaBooster:
         pod_forecast = None
         current_time = datetime.now(tz=timezone.utc) + timedelta(hours=8)
         if current_time.hour == 0 and current_time.minute == 5 and self.forecast:
-            with self.lock:
-                pod_data = copy.copy(self.pod_data)
-            pod_forecast = get_forecast_load(pod_data)
-            logging.info('Pod forecast result is: %s', pod_data)
-        return pod_forecast
+            if self.last_forecast_time.date() == current_time.date():
+                return pod_forecast
+            else:
+                self.last_forecast_time = current_time
+                with self.lock:
+                    pod_data = copy.copy(self.pod_data)
+                pod_forecast = get_forecast_load(pod_data)
+                logging.info('Pod forecast result is: %s', pod_forecast)
+                logging.info('Pod load avg data is: %s', pod_data)
+                return pod_forecast
 
 
     def load_collect(self):
@@ -490,11 +496,11 @@ def booster_param_parser():
     parser.add_argument('--max-expand-limit', type=float, default=3.0, help='Max expand limit')
     parser.add_argument('--min-scaling-limit', type=float, default=1.0, help='Min scaling limit')
     parser.add_argument('--log-level', type=str, default='INFO', help='Log level')
-    parser.add_argument('--data-collect', type=bool, default=False, help='Data collect on/off')
+    parser.add_argument('--data-collect', type=str2bool, choices=[True, False], default=False, help='Data collect on/off')
     parser.add_argument('--data-collector-interval', type=int, default=600, help='Data collect interval in seconds')
     parser.add_argument('--data-monitor-interval', type=int, default=1, help='Data monitor interval in seconds')
     parser.add_argument('--numa-balance-interval', type=int, default=10, help='Numa balance interval in seconds')
-    parser.add_argument('--forecast', type=bool, default=True, help='load forecast on/off')
+    parser.add_argument('--forecast', type=str2bool, choices=[True, False], default=True, help='load forecast on/off')
     args = parser.parse_args()
 
     return args
@@ -512,8 +518,9 @@ def cpu_booster_main():
         # 初始化日志模块
         logging.set_log_instance(args.log_level)
         logging.info('Initialize log module, log level set {}'.format(args.log_level))
+        logging.info('Version: 1.0.0')
         # 创建管理文件
-        os.makedirs(util.WAAS_BOOSTER_MANAGER)
+        os.makedirs(util.WAAS_BOOSTER_MANAGER, exist_ok=True)
         QB = QuotaBooster(
             monitor_interval=args.monitor_interval,
             refresh_interval=args.refresh_interval,
@@ -535,7 +542,6 @@ def cpu_booster_main():
         cpu_thread = threading.Thread(target=QB.run)
         cpu_thread.start()
         logging.info('Waas Booster service start')
-        logging.info('Version: 1.0.0')
         while QB_RUNNING:
             if not QB_RUNNING:
                 break
