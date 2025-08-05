@@ -4,6 +4,7 @@
 import os
 import re
 import time
+import argparse
 import boost_log as logging
 
 
@@ -336,3 +337,10 @@ def is_numa_multiple(affinity_str, numa_info):
             return False, []
             
     return True, valid_nodes
+
+
+def str2bool(choice):
+    if choice.lower() in ('true', 'false'):
+        return choice.lower() == 'true'
+    else:
+        return argparse.ArgumentParser('Bool value expected')
