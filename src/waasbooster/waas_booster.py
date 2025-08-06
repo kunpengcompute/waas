@@ -415,17 +415,25 @@ class QuotaBooster:
     def load_forecast(self):
         pod_forecast = None
         current_time = datetime.now(tz=timezone.utc) + timedelta(hours=8)
-        if current_time.hour == 0 and current_time.minute == 5 and self.forecast:
-            if self.last_forecast_time.date() == current_time.date():
-                return pod_forecast
+        try:
+            if current_time.hour == 0 and current_time.minute == 5 and self.forecast:
+                if self.last_forecast_time is None:
+                    self.last_forecast_time = current_time
+                    return pod_forecast
+                elif self.last_forecast_time.date() == current_time.date():
+                    return pod_forecast
+                else:
+                    self.last_forecast_time = current_time
+                    with self.lock:
+                        pod_data = copy.copy(self.pod_data)
+                    pod_forecast = get_forecast_load(pod_data)
+                    logging.info('Pod forecast result is: %s', pod_forecast)
+                    logging.info('Pod load avg data is: %s', pod_data)
+                    return pod_forecast
             else:
-                self.last_forecast_time = current_time
-                with self.lock:
-                    pod_data = copy.copy(self.pod_data)
-                pod_forecast = get_forecast_load(pod_data)
-                logging.info('Pod forecast result is: %s', pod_forecast)
-                logging.info('Pod load avg data is: %s', pod_data)
                 return pod_forecast
+        except Exception as e:
+            logging.warning('Load forecast skip for: %s', e)
 
 
     def load_collect(self):
