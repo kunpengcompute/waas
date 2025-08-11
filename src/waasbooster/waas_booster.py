@@ -493,21 +493,6 @@ signal.signal(signal.SIGTERM, sigterm_handler)
 def booster_param_parser():
     # 解析命令行参数
     parser = argparse.ArgumentParser(description='Waas booster service')
-    parser.add_argument('--monitor-interval', type=float, default=0.1, help='Monitor interval in seconds')
-    parser.add_argument('--refresh-interval', type=int, default=20, help='Refresh interval in seconds')
-    parser.add_argument('--over-load-threshold', type=float, default=0.9, help='Over load threshold (0-1)')
-    parser.add_argument('--down-load-threshold', type=float, default=0.3, help='Down load threshold (0-1)')
-    parser.add_argument('--expand-cor', type=float, default=1.2, help='Expand coefficient')
-    parser.add_argument('--scaling-cor', type=float, default=0.9, help='Scaling coefficient')
-    parser.add_argument('--boost-interval', type=int, default=3, help='Boost interval in seconds')
-    parser.add_argument('--unboost-interval', type=int, default=30, help='Unboost interval in seconds')
-    parser.add_argument('--max-expand-limit', type=float, default=3.0, help='Max expand limit')
-    parser.add_argument('--min-scaling-limit', type=float, default=1.0, help='Min scaling limit')
-    parser.add_argument('--log-level', type=str, default='INFO', help='Log level')
-    parser.add_argument('--data-collect', type=str2bool, choices=[True, False], default=False, help='Data collect on/off')
-    parser.add_argument('--data-collector-interval', type=int, default=600, help='Data collect interval in seconds')
-    parser.add_argument('--data-monitor-interval', type=int, default=1, help='Data monitor interval in seconds')
-    parser.add_argument('--numa-balance-interval', type=int, default=10, help='Numa balance interval in seconds')
     parser.add_argument('--forecast', type=str2bool, choices=[True, False], default=True, help='load forecast on/off')
     args = parser.parse_args()
 
@@ -517,33 +502,18 @@ def booster_param_parser():
 def cpu_booster_main():
     global QB
     global QB_RUNNING
-
+    log_level = util.LOG_LEVEL_INFO
     args = booster_param_parser()
 
     try:
-        if args.log_level not in util.LOG_LEVEL_LIST:
-            raise ValueError('Invalid log level {}'.format(args.log_level))
         # 初始化日志模块
-        logging.set_log_instance(args.log_level)
-        logging.info('Initialize log module, log level set {}'.format(args.log_level))
+        log_level
+        logging.set_log_instance(log_level)
+        logging.info('Initialize log module, log level set {}'.format(log_level))
         logging.info('Version: 1.0.0')
         # 创建管理文件
         os.makedirs(util.WAAS_BOOSTER_MANAGER, exist_ok=True)
         QB = QuotaBooster(
-            monitor_interval=args.monitor_interval,
-            refresh_interval=args.refresh_interval,
-            over_load_threshold=args.over_load_threshold,
-            down_load_threshold=args.down_load_threshold,
-            expand_cor=args.expand_cor,
-            scaling_cor=args.scaling_cor,
-            boost_interval=args.boost_interval,
-            unboost_interval=args.unboost_interval,
-            max_expand_limit=args.max_expand_limit,
-            min_scaling_limit=args.min_scaling_limit,
-            data_collect=args.data_collect,
-            data_collector_interval=args.data_collector_interval,
-            data_monitor_interval=args.data_monitor_interval,
-            numa_balance_interval=args.numa_balance_interval,
             forecast=args.forecast
         )
         QB.init_service()

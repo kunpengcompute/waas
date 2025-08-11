@@ -1,13 +1,23 @@
 # -*- coding: utf-8 -*-
 # 版权所有 (c) 华为技术有限公司 2025-2025
 
+import logging
+logging.getLogger('cmdstanpy').disabled = True
 import pandas as pd
 import numpy as np
 from prophet import Prophet
 from prophet.diagnostics import cross_validation, performance_metrics
-from sklearn.metrics import mean_squared_error
 from datetime import datetime, timedelta, timezone
 import boost_log as logging
+
+
+def mean_squared_error(y_true, y_pred):
+    """手动实现 MSE"""
+    y_true = np.array(y_true)
+    y_pred = np.array(y_pred)
+    if y_true.shape != y_pred.shape:
+        raise ValueError("y_true 和 y_pred 的形状必须一致")
+    return np.mean((y_true - y_pred) ** 2)
 
 
 def train_until_converged(df, max_trials=5, rmse_threshold=1.5):
@@ -72,18 +82,42 @@ def get_forecast_load(load_data):
     data_qualified, pod_data = data_pre(load_data)
     if not data_qualified:
         return None
+
     for pod_path, pod_value in pod_data.items():
         if pod_value is not None and not pod_value.empty:
             try:
                 model, params, final_rmse = train_until_converged(pod_value)
                 future = model.make_future_dataframe(periods=48, freq='30min')
                 forecast = model.predict(future)
-                forecast_date_value = forecast[['ds', 'yhat']].tail(48)
-                result = [[ts.strftime('%Y-%m-%d %H:%M:%S'), value] for ts, value in zip(forecast_date_value['ds'], forecast_date_value['yhat'])]
-                pod_forecast.update({pod_path: result})
+
+                # 获取最后48步预测
+                forecast_tail = forecast.tail(48).copy()
+
+                # 合并真实值
+                merged = forecast_tail.merge(
+                    pod_value[['ds', 'y']], on='ds', how='left'
+                )
+
+                # 计算原值一半
+                half_real = merged['y'] * 0.5
+                merged.loc[merged['y'].isna(), 'yhat'] = merged.loc[merged['y'].isna(), 'yhat'].clip(lower=0)
+
+                mask_has_real = merged['y'].notna()
+                merged.loc[mask_has_real, 'yhat'] = np.maximum.reduce([
+                    merged.loc[mask_has_real, 'yhat'],
+                    half_real[mask_has_real],
+                    np.zeros(mask_has_real.sum())
+                ])
+
+                result = [
+                    [ts.strftime('%Y-%m-%d %H:%M:%S'), value]
+                    for ts, value in zip(merged['ds'], merged['yhat'])
+                ]
+                pod_forecast[pod_path] = result
+
             except Exception as e:
                 logging.info('pod %s not support forecast', pod_path)
-        
+
     return pod_forecast
 
 
