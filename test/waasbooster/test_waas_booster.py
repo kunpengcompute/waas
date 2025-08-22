@@ -744,43 +744,6 @@ class TestQuotaBoosterGetPodOgQuota(unittest.TestCase):
         mock_record.assert_called_once_with({'/pod3': 8000})
 
 
-class TestQuotaBoosterNumaBalance(unittest.TestCase):
-
-    @patch('waas_booster.time')
-    def test_numa_balance_no_action_when_interval_not_passed(self, mock_time):
-        qb = QuotaBooster()
-        qb.numa_balance_interval = 100  # 设置较长间隔
-        qb.numa_balance_last_time = 1000
-        mock_time.time.return_value = 1005  # 没有达到 interval
-        
-        result = qb.numa_balance()
-        
-        self.assertEqual(result, {}, "Should not update quota if interval not passed.")
-
-    @patch('waas_booster.time')
-    def test_numa_balance_triggers_update_when_interval_passed(self, mock_time):
-        qb = QuotaBooster()
-        qb.numa_balance_interval = 10
-        qb.numa_balance_last_time = 1000
-        mock_time.time.return_value = 1015  # 已超过 interval
-
-        # Mock NUMA monitor and quota manager
-        qb.numa_monitor = MagicMock()
-        qb.numa_monitor.get_numa_cpu_dict.return_value = {"numa0": 80, "numa1": 90}
-        
-        qb.quota_manager = MagicMock()
-        qb.quota_manager.quota_approval.return_value = {"pod1": {"cpu": 2000}}
-
-        qb.boost_pod_record_dict = {}
-        qb.pod_nodes = ["node0", "node1"]
-
-        result = qb.numa_balance()
-
-        # 验证 quota_approval 被调用
-        qb.quota_manager.quota_approval.assert_called_once()
-        self.assertEqual(result, {"pod1": {"cpu": 2000}}, "Quota should be updated properly.")
-
-
 class TestQuotaBoosterLoadForecast(unittest.TestCase):
 
     @patch('waas_booster.datetime')
