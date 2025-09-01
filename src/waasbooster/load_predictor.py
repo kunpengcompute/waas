@@ -26,7 +26,7 @@ def train_until_converged(df, max_trials=5, rmse_threshold=1.5):
     best_rmse = float('inf')
     best_params = None
     fourier_orders = [5, 10, 20]
-    changepoint_scales= [0.01, 0.1, 0.5]
+    changepoint_scales = [0.01, 0.1, 0.5]
     use_cross_validation = len(df) >= 2 * 48
     cor = len(df) // 48
     trial_count = 0
@@ -36,7 +36,7 @@ def train_until_converged(df, max_trials=5, rmse_threshold=1.5):
             if trial_count >= max_trials:
                 return best_model, best_params, best_rmse
 
-            logging.debug(f'fourier_order={order}, changepoint_scale={scale}')
+            logging.debug('fourier_order=%s, changepoint_scale=%s', order, scale)
             model = Prophet(
                 daily_seasonality=False,
                 weekly_seasonality=False,
@@ -62,7 +62,7 @@ def train_until_converged(df, max_trials=5, rmse_threshold=1.5):
                 y_true = df_val['y'].values
                 mse = mean_squared_error(y_true, y_pred)
                 rmse = np.sqrt(mse)
-            logging.debug(f'current RMSE: {rmse:.4f}')
+            logging.debug('current RMSE: %s', rmse)
 
             if rmse < best_rmse:
                 best_rmse = rmse

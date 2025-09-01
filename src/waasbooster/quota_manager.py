@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 版权所有 (c) 华为技术有限公司 2025-2025
 
 import subprocess
 import boost_log as logging
@@ -8,7 +9,7 @@ from util import get_container_info, OG_QUOTA, AC_QUOTA, BT_QUOTA, CPU_SHARES
 def _get_cgroup_version():
     try:
         result = subprocess.run(
-            ['stat', '-fc', '%T', '/sys/fs/cgroup'],
+            ['/usr/bin/stat', '-fc', '%T', '/sys/fs/cgroup'],
             capture_output=True,
             text=True,
             timeout=2
