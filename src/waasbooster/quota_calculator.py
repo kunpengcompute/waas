@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 版权所有 (c) 华为技术有限公司 2025-2025
 
 class PIDController:
     def __init__(self, kp, ki, kd, max_output=float('inf'), min_output=-float('inf')):

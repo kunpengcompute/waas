@@ -54,8 +54,7 @@ class QuotaBooster:
         self.cpu_queue_dict = {}
         self.boost_pod_record_dict = {}
         self.data_collect = data_collect
-        self.cpu_monitor = None
-        self.cpu_monitor_thread = None
+        self.cpu_monitor, self.cpu_monitor_thread = None, None
         self.data_collector_interval = data_collector_interval
         self.data_monitor_interval = data_monitor_interval
         self.container_update_queue = {}
@@ -65,15 +64,14 @@ class QuotaBooster:
         self.pod_og_quota = {}
         self.quota_manager = None
         self.lock = threading.Lock()
-        self.data_collector = None
-        self.data_collector_thread = None
+        self.data_collector, self.data_collector_thread = None, None
         self.numa_balance_last_time = time.time()
         self.numa_balance_current_time = None
         self.sleep_interval = 0.1
         self.last_forecast_time = None
-        self.pod_data = defaultdict(lambda: {'sum': 0, 'count': 0, 'last_processed_minute': None, 'half_hour_avg': deque(maxlen=7*48), 
-                                            'start_time': None, 'update': False, 'qualified': True})
-
+        self.pod_data = defaultdict(lambda: {'sum': 0, 'count': 0, 'last_processed_minute': None, 
+                                             'half_hour_avg': deque(maxlen=7*48), 
+                                             'start_time': None, 'update': False, 'qualified': True})
         try: 
             self.pod_path, self.pod_nodes = self.get_all_pod()
             self.pod_og_quota = self.get_pod_og_quota()
@@ -434,6 +432,7 @@ class QuotaBooster:
                 return pod_forecast
         except Exception as e:
             logging.warning('Load forecast skip for: %s', e)
+            return pod_forecast
 
 
     def load_collect(self):
@@ -441,32 +440,7 @@ class QuotaBooster:
         while self.running:
             current_time = datetime.now(tz=timezone.utc) + timedelta(hours=8)
             if self.cpu_queue_dict:
-                for pod_path, pod_info in self.cpu_queue_dict.items():
-                    try:
-                        cpu_util = pod_info[util.CPU_UTIL]
-                        avg_cpu_util = sum(cpu_util) / len(cpu_util)
-                        self.pod_data[pod_path]['sum'] += avg_cpu_util
-                        self.pod_data[pod_path]['count'] += 1
-                        if self.pod_data[pod_path]['start_time'] is None:
-                            self.pod_data[pod_path]['start_time'] = current_time
-                        self.pod_data[pod_path]['update'] = True
-                        
-                        if (current_time.minute == 0 or current_time.minute == 30) and \
-                            self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
-                            if self.pod_data[pod_path]['qualified'] and \
-                            (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
-                                avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
-                                self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, avg_cpu_util_halfhour))
-                            else:
-                                self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], current_time, None))
-                            self.pod_data[pod_path]['sum'] = 0
-                            self.pod_data[pod_path]['count'] = 0
-                            self.pod_data[pod_path]['start_time'] = current_time
-                            self.pod_data[pod_path]['qualified'] = True
-                            self.pod_data[pod_path]['last_processed_minute'] = current_time.minute
-                    except Exception as e:
-                        logging.debug('collect data lacking: %s', e)
-                        continue
+                _ = self.update_pod_data(current_time)
                 for pod_path, pod_info in self.pod_data.items():
                     if not pod_info['update']:
                         self.pod_data[pod_path]['qualified'] = False
@@ -474,6 +448,36 @@ class QuotaBooster:
             time.sleep(self.monitor_interval * self.queue_max_len)
             logging.debug(f'self.pod_data is: {self.pod_data}')
     
+    def update_pod_data(self, current_time):
+        for pod_path, pod_info in self.cpu_queue_dict.items():
+            try:
+                cpu_util = pod_info[util.CPU_UTIL]
+                avg_cpu_util = sum(cpu_util) / len(cpu_util)
+                self.pod_data[pod_path]['sum'] += avg_cpu_util
+                self.pod_data[pod_path]['count'] += 1
+                if self.pod_data[pod_path]['start_time'] is None:
+                    self.pod_data[pod_path]['start_time'] = current_time
+                self.pod_data[pod_path]['update'] = True
+                
+                if (current_time.minute == 0 or current_time.minute == 30) and \
+                    self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
+                    if self.pod_data[pod_path]['qualified'] and \
+                    (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
+                        avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
+                        self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], 
+                                                                         current_time, avg_cpu_util_halfhour))
+                    else:
+                        self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], 
+                                                                         current_time, None))
+                    self.pod_data[pod_path]['sum'] = 0
+                    self.pod_data[pod_path]['count'] = 0
+                    self.pod_data[pod_path]['start_time'] = current_time
+                    self.pod_data[pod_path]['qualified'] = True
+                    self.pod_data[pod_path]['last_processed_minute'] = current_time.minute
+            except Exception as e:
+                logging.debug('collect data lacking: %s', e)
+                continue
+        return self.pod_data
 
 
 def sigterm_handler(signum, frame):

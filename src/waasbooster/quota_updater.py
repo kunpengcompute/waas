@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# 版权所有 (c) 华为技术有限公司 2025-2025
 
 import os
 import boost_log as logging
