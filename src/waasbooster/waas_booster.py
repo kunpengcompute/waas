@@ -177,6 +177,7 @@ class QuotaBooster:
         try:
             with open(self.init_quota_file, 'w', encoding='utf-8') as file:
                 file.write(json.dumps(quota_dict, indent=4))
+            os.chmod(self.init_quota_file, 0o600)
         except Exception as e:
             logging.warning('Init quota record failed for: %s', e)
             return False

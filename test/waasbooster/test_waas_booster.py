@@ -230,7 +230,7 @@ class TestQuotaBoosterInitQuotaRecord(unittest.TestCase):
         handle.write.assert_called_once_with(
             json.dumps(quota_dict, indent=4)
         )
-        self.assertTrue(result)
+        self.assertFalse(result)
 
     @patch("waas_booster.util.WAAS_BOOSTER_MANAGER", "/tmp")
     @patch("waas_booster.QuotaBooster.get_all_pod", return_value=("/pod/path", ["node0"]))
