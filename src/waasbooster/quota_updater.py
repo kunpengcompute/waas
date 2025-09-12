@@ -26,6 +26,8 @@ def quota_updater(cgroup_path:str, quota):
 
     try:
         parent_quota_path = os.path.join(os.path.dirname(cgroup_path), "cpu.cfs_quota_us")
+        if not os.path.exists(parent_quota_path):
+            return False
         _ = _update_parent_quota(parent_quota_path, quota_value)
         with open(quota_path, 'w') as q:
             q.write(str(quota_value))
