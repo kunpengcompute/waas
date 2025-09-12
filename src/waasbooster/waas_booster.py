@@ -461,7 +461,7 @@ class QuotaBooster:
                 
                 if (current_time.minute == 0 or current_time.minute == 30) and \
                     self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
-                    if self.pod_data[pod_path]['qualified'] and \
+                    if self.pod_data[pod_path]['qualified'] and self.pod_data[pod_path]['count'] !=0 and \
                     (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
                         avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
                         self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], 
