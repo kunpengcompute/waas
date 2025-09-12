@@ -186,11 +186,14 @@ def get_boosted_container_cgroups():
     boosted_container_path = []
     boosted_container_node = {}
     for path in container_paths:
-        with open(os.path.join(path, 'cpu.cfs_quota_us'), 'r') as f:
-            quota_value = f.read().strip()
-            if quota_value != '-1':
-                boosted_container_path.append(path)
-                boosted_container_node.update({path: container_nodes.get(path)})
+        try:
+            with open(os.path.join(path, 'cpu.cfs_quota_us'), 'r') as f:
+                quota_value = f.read().strip()
+                if quota_value != '-1':
+                    boosted_container_path.append(path)
+                    boosted_container_node.update({path: container_nodes.get(path)})
+        except Exception as e:
+            logging.warning("Fail to read container %s quota value for %s", path, e)
     return sorted(boosted_container_path), boosted_container_node
 
 
