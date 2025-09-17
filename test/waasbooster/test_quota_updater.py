@@ -117,12 +117,7 @@ class TestQuotaUpdater(unittest.TestCase):
             
             # Check if the expected log calls were made
             mock_info.assert_not_called()
-            mock_error.assert_called_with(
-                "Failed to update pod %s quota to %d, error: %s",
-                cgroup_path,
-                quota_value,
-                error
-            )
+            mock_error.assert_not_called()
 
 
 class TestUpdateParentQuota(unittest.TestCase):
