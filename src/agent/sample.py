@@ -160,10 +160,6 @@ class PerfCount():
 
 
     def get_data(self):
-        ret = {}
-        ret['start_time'] = self.start_time
-        ret['stop_time'] = self.start_time
-
         result = {}
         for data in self.results.iter:
             if not result.get(data.cpu):
@@ -178,4 +174,8 @@ class PerfCount():
             result[data.cpu][evt_name]['count'] = data.count
             result[data.cpu][evt_name]['countPercent'] = data.countPercent
 
-        return result
+        return {
+            "start_time": self.start_time,
+            "stop_time": self.stop_time,
+            "all": result
+        }
