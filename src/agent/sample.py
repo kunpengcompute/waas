@@ -170,6 +170,8 @@ class PerfCount():
             else:
                 evt_name = data.evt
 
+            # 原始指标均用大写，以示区分
+            evt_name = evt_name.upper()
             result[data.cpu][evt_name] = {}
             result[data.cpu][evt_name]['count'] = data.count
             result[data.cpu][evt_name]['countPercent'] = data.countPercent
