@@ -28,7 +28,7 @@ def _get_args():
         default="", help="Output file path, default ./data.csv")
     parser.add_argument("-m", "--maxrows", metavar="MAXROWS", type=int,
                         default=100000, help="Max rows in one output file, default 10000, \
-if there is more data, it will be saved in another file(s).")
+                        if there is more data, it will be saved in another file(s).")
     return parser.parse_args()
 
 
@@ -93,7 +93,6 @@ def main():
         if recorder:
             recorder.insert(data)
         payload = _processor.process(data)
-        print(payload)
 
         _messenger.send_data(payload)
         advice = _messenger.get_advice()

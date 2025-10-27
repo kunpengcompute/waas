@@ -17,6 +17,8 @@ EVENTS = {
             'r0011',    # CPU_CYCLES
             'r0021',    # BR_RETIRED
             'r0022',    # BR_MIS_PRED_RETIRED
+            'r0032',    # LL_CACHE
+            'r0033',    # LL_CACHE_MISS
         ],
 
         [
@@ -59,6 +61,16 @@ EVENTS = {
             'l1d_tlb_refill',
             'l2d_tlb',
             'l2d_tlb_refill',
+            'irq:irq_handler_entry',
+            'irq:softirq_entry',
+        ],
+
+        [
+            'major-faults',
+            'minor-faults',
+            'page-faults',
+            'task-clock',
+            'cpu-clock',
         ],
     ],
 
@@ -71,6 +83,8 @@ EVENT_NAME_MAP = {
     'r0011' : 'CPU_CYCLES',
     'r0021' : 'BR_RETIRED',
     'r0022' : 'BR_MIS_PRED_RETIRED',
+    'r0032' : 'LL_CACHE',
+    'r0033' : 'LL_CACHE_MISS',
     'r001b' : 'INST_SPEC',
     'r0070' : 'LD_SPEC',
     'r0071' : 'ST_SPEC',
