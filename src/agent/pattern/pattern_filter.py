@@ -1,4 +1,5 @@
 import json
+import logging
 from data_process import Layer
 from calculators import _cpy, _div, _add, IPC_VAL_MAX
 
@@ -36,7 +37,5 @@ class PatternFilter(Layer):
             for metric_name in self.features:
                 pattern_data[group_id][metric_name] = data[group_id][metric_name]
 
-        print("\n +++++++ PATTERN DATA FILTER DISPLAY++++++++")
-        print(pattern_data)
-        print("\n +++++++ PATTERN DATA FILTED++++++++")
+        logging.debug("[PatternFilter] Data filtered is %s", pattern_data)
         return pattern_data

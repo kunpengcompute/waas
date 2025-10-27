@@ -4,6 +4,7 @@ Create: 2025-10-21
 Description: waas agent data process
 """
 import copy
+import logging
 from calculators import _cpy, _add, _sub, _div, IPC_VAL_MAX
 
 class Layer():
@@ -29,7 +30,7 @@ class DataProcessor():
             "vector.ratio"                   : _add("SIMD_INST_SPEC", "SVE_INST_SPEC", "ASE_INST_SPEC") / _cpy("INST_SPEC"),
             "CPU_CYCLES"                     : _cpy("CPU_CYCLES"),
             # "cpu.cycles:u/a"               : _sub("CPU_CYCLES", "CPU_CYCLES_KERNEL") / _cpy("CPU_CYCLES"),
-            "cpu.ipc"                        : _div("INST_RETIRED", "CPU_CYCLES", "IPC") / IPC_VAL_MAX,
+            "cpu.ipc"                        : _div("INST_RETIRED", "CPU_CYCLES") / IPC_VAL_MAX,
             # "cpu.ipc:u"                    : _sub("instructions_retired", "instructions_retired_k") / _sub("CPU_CYCLES", "CPU_CYCLES_KERNEL") / IPC_VAL_MAX,
             "branch.mpi"                     : _div("BR_MIS_PRED_RETIRED", "INST_RETIRED"),
             "l1i.mpi"                        : _div("L1I_CACHE_REFILL", "INST_RETIRED"),
@@ -87,17 +88,17 @@ class DataProcessor():
         else:
             processors = self.processors
 
-        result = {}
-        for group_id, processor in processors.items():
+        tmp_data = None
+        for processor_name, processor in processors.items():
+            logging.debug("Processing with processor %s", processor_name)
             tmp_data = copy.deepcopy(_data)
             for layer in processor:
                 tmp_data = layer.process(tmp_data)
-            result[group_id] = tmp_data
 
         return {
-            "start_time": str(data['start_time']),
-            "stop_time": str(data['stop_time']),
-            "all": result
+            "start_time": data['start_time'],
+            "stop_time": data['stop_time'],
+            "all": tmp_data
         }
 
     def add_porcesser(self, name:str, layers:list):

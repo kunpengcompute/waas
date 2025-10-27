@@ -49,8 +49,8 @@ def _mul(_cal):
 
 class _div(_cal):
     def __call__(self, data):
-        if len(self.extra) < 1:
-            return Exception("No Denominator Provided.")
+        if len(self.extra) < 1 or len(self.extra) > 1:
+            return Exception("%s Denominator(s) Provided, should be 1." % len(self.extra))
         if data[self.extra[0]] == 0:
             return 0
         return data[self.x1] / data[self.extra[0]]
