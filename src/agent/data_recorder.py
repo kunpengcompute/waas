@@ -76,8 +76,8 @@ class DataRecorder:
     def insert(self, data: Dict[str, Any]) -> None:
         """插入一行数据"""
         flattened_data = {
-            'start_time': data.get('start_time', ''),
-            'stop_time': data.get('stop_time', '')
+            'start_time': str(data.get('start_time', '')),
+            'stop_time': str(data.get('stop_time', ''))
         }
 
         core_data = data.get('all', {})
