@@ -99,7 +99,7 @@ EVENT_NAME_MAP = {
 }
 
 
-class PerfCount():
+class PerfCount:
     def __init__(self, cpu_list=None):
         if cpu_list:
             self.cpu_list = cpu_list
@@ -116,7 +116,6 @@ class PerfCount():
         self.results = {}
 
         self._init_event()
-
 
     def _init_event(self):
         i = 1
@@ -144,8 +143,6 @@ class PerfCount():
         
         self.pd = self._open_pd()
 
-
-
     def _open_pd(self):
         evt_list = [ evt['event'] for evt in self.events ]
         evt_attr_list = [ evt['group'] for evt in self.events ]
@@ -161,7 +158,6 @@ class PerfCount():
             raise ValueError(kperf.error())
         return pd
 
-
     def count(self, count_time):
         kperf.enable(self.pd)
         self.start_time = datetime.now()
@@ -171,7 +167,6 @@ class PerfCount():
 
         self.results = kperf.read(self.pd)
         return self.results
-
 
     def get_data(self):
         result = {}

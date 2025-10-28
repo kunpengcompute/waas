@@ -4,14 +4,12 @@ Create: 2025-10-21
 Description: waas agent data process
 """
 
-class Messenger():
+class Messenger:
     def __init__(self):
         pass
 
-
     def send_data(self, data):
         pass
-
 
     def get_advice(self):
         return {}

@@ -6,6 +6,7 @@ Description: waas agent main
 
 import argparse
 import psutil
+import logging
 
 from sample import PerfCount
 from data_process import DataProcessor, Layer
@@ -13,6 +14,10 @@ from messenger import Messenger
 from handler import Handler
 from data_recorder import DataRecorder
 
+logging.basicConfig(
+    level=logging.DEBUG,
+    format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s'
+)
 
 MAX_INTERVAL=10
 MIN_INTERVAL=0.01
@@ -55,7 +60,7 @@ def _get_cpus(cpus):
                 else:
                     raise ValueError("cpu core out of range")
     except Exception as e:
-        print("Parse cpu list error: ", e, "\n Using all cpus")
+        logging.error("Parse cpu list error: %s \n Using all cpus" % str(e), exc_info=True)
         cpu_list = []
 
     return cpu_list
@@ -63,10 +68,10 @@ def _get_cpus(cpus):
 
 def _get_interval(interval):
     if interval > MAX_INTERVAL:
-        print("Interval greater than max value, using ", MAX_INTERVAL)
+        logging.error("Interval greater than max value, using ", MAX_INTERVAL)
         return MAX_INTERVAL
     elif interval < MIN_INTERVAL:
-        print("Interval smaller than min value, using ", MIN_INTERVAL)
+        logging.error("Interval smaller than min value, using ", MIN_INTERVAL)
         return MIN_INTERVAL
     else:
         return interval
