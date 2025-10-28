@@ -8,6 +8,7 @@ import argparse
 import psutil
 import logging
 
+import util
 from sample import PerfCount
 from data_process import DataProcessor, Layer
 from messenger import Messenger
@@ -33,7 +34,7 @@ def _get_args():
         default="", help="Output file path, default ./data.csv")
     parser.add_argument("-m", "--maxrows", metavar="MAXROWS", type=int,
                         default=100000, help="Max rows in one output file, default 10000, \
-                        if there is more data, it will be saved in another file(s).")
+if there is more data, it will be saved in another file(s).")
     return parser.parse_args()
 
 
@@ -98,6 +99,12 @@ def main():
         if recorder:
             recorder.insert(data)
         payload = _processor.process(data)
+        timestamp = payload['start_time'].timestamp()
+        for group_id, group_data in payload['all'].items():
+
+            packed_bytes = util.packup(group_data, timestamp)
+            logging.debug("The packed bytes (length: %s) for group %s is %s" % (len(packed_bytes), group_id, packed_bytes))
+            logging.debug("The unpacked bytes for group %s is %s" % (group_id, util.unpack(packed_bytes, DataProcessor.features.keys())))
 
         _messenger.send_data(payload)
         advice = _messenger.get_advice()
