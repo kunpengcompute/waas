@@ -27,9 +27,7 @@
 
 #define MODI_REG(para, name, opcode) \
     if ((para) != NOTHING_CHANGED) { \
-        MRSASM(oldval, opcode); \
         MSRASM(para, opcode); \
-        MRSASM(newval, opcode); \
     } \
 
 #define READ_REG(para, opcode) \
@@ -76,6 +74,8 @@ enum GORUP {
     GROUP27,
     GROUP28,
     GROUP29,
+    GROUP30,
+    GROUP31,
     GROUP_MAX
 };
 #define GROUP_NUM (GROUP_MAX - MAGIC)
@@ -86,7 +86,6 @@ enum GORUP {
 
 static void write_cpu_registers(void *data)
 {
-    long long unsigned int oldval, newval;
     long long unsigned int *group = (long long unsigned int *)data;
     MODI_REG_TYPE2(group[12], S3_1_c15_c0_0)
     MODI_REG_TYPE2(group[13], S3_1_c15_c0_1)
@@ -118,6 +117,8 @@ static void write_cpu_registers(void *data)
     MODI_REG_TYPE2(group[0], S3_1_c15_c9_5)
     MODI_REG_TYPE2(group[28], S3_1_c15_c8_7)
     MODI_REG_TYPE2(group[29], S3_1_c15_c9_0)
+    MODI_REG_TYPE2(group[30], S3_1_c15_c5_2)
+    MODI_REG_TYPE2(group[31], S3_1_c15_c4_7)
 }
 
 static void read_cpu_registers(void *data)
@@ -153,6 +154,8 @@ static void read_cpu_registers(void *data)
     READ_REG(group[0], S3_1_c15_c9_5)
     READ_REG(group[28], S3_1_c15_c8_7)
     READ_REG(group[29], S3_1_c15_c9_0)
+    READ_REG(group[30], S3_1_c15_c5_2)
+    READ_REG(group[31], S3_1_c15_c4_7)
 }
 
 struct entry {
@@ -396,7 +399,6 @@ static void __exit fini(void)
     cdev_del(&prf_cdev);
     unregister_chrdev_region(dev_num, 1);
     pr_info("prf module unloaded\n");
-
 }
 
 module_init(init);
