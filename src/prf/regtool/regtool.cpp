@@ -64,6 +64,8 @@ enum GROUP : int {
     GROUP27,
     GROUP28,
     GROUP29,
+    GROUP30,
+    GROUP31,
     GROUP_MAX
 };
 
@@ -102,6 +104,8 @@ void InitMap()
     g_groupMap["group27"] = GROUP27;
     g_groupMap["group28"] = GROUP28;
     g_groupMap["group29"] = GROUP29;
+    g_groupMap["group30"] = GROUP30;
+    g_groupMap["group31"] = GROUP31;
 }
 
 enum Args : int {
