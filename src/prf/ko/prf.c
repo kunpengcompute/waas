@@ -76,6 +76,7 @@ enum GORUP {
     GROUP29,
     GROUP30,
     GROUP31,
+    GROUP32,
     GROUP_MAX
 };
 #define GROUP_NUM (GROUP_MAX - MAGIC)
@@ -117,8 +118,9 @@ static void write_cpu_registers(void *data)
     MODI_REG_TYPE2(group[0], S3_1_c15_c9_5)
     MODI_REG_TYPE2(group[28], S3_1_c15_c8_7)
     MODI_REG_TYPE2(group[29], S3_1_c15_c9_0)
-    MODI_REG_TYPE2(group[30], S3_1_c15_c5_2)
+    MODI_REG_TYPE2(group[30], S3_1_c15_c4_6)
     MODI_REG_TYPE2(group[31], S3_1_c15_c4_7)
+    MODI_REG_TYPE2(group[32], S3_1_c15_c5_2)
 }
 
 static void read_cpu_registers(void *data)
@@ -154,8 +156,9 @@ static void read_cpu_registers(void *data)
     READ_REG(group[0], S3_1_c15_c9_5)
     READ_REG(group[28], S3_1_c15_c8_7)
     READ_REG(group[29], S3_1_c15_c9_0)
-    READ_REG(group[30], S3_1_c15_c5_2)
+    READ_REG(group[30], S3_1_c15_c4_6)
     READ_REG(group[31], S3_1_c15_c4_7)
+    READ_REG(group[32], S3_1_c15_c5_2)
 }
 
 struct entry {
