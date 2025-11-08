@@ -71,10 +71,16 @@ EVENTS = {
             'page-faults',
             'task-clock',
             'cpu-clock',
+            'context-switches',
         ],
     ],
 
-    'all' : []
+    'all' : [
+        [
+            'r0008',    # INST_RETIRED
+            'r0011',    # CPU_CYCLES
+        ]
+    ]
 }
 
 
@@ -114,6 +120,7 @@ class PerfCount:
         self.start_time = None
         self.stop_time = None
         self.results = {}
+        self.all_group_num0 = 0
 
         self._init_event()
 
@@ -130,6 +137,7 @@ class PerfCount:
                     'excludeKernel' : True,
                 })
 
+        self.all_group_num0 = i
         for group in EVENTS['all']:
             group_num = i
             i+=1
@@ -145,13 +153,12 @@ class PerfCount:
 
     def _open_pd(self):
         evt_list = [ evt['event'] for evt in self.events ]
-        evt_attr_list = [ evt['group'] for evt in self.events ]
-        #exclude_user_list = [ evt['excludeUser'] for evt in self.events ]
-        #exclude_kernel_list = [ evt['excludeKernel'] for evt in self.events ]
+        evt_attr_list = [
+            kperf.EvtAttr(evt['group'], 0, evt['excludeUser'], evt['excludeKernel']) for evt in self.events
+        ]
 
-        pmu_attr = kperf.PmuAttr(evtList=evt_list, cpuList=self.cpu_list,
-            excludeKernel=True, excludeUser=False, evtAttr=evt_attr_list)
-        
+        pmu_attr = kperf.PmuAttr(evtList=evt_list, cpuList=self.cpu_list, evtAttr=evt_attr_list)
+
         pd = kperf.open(kperf.PmuTaskType.COUNTING, pmu_attr)
         if pd == -1:
             print(kperf.error())
@@ -173,11 +180,14 @@ class PerfCount:
         for data in self.results.iter:
             if not result.get(data.cpu):
                 result[data.cpu] = {}
-            
+
             if data.evt.startswith('r'):
                 evt_name = EVENT_NAME_MAP[data.evt]
             else:
                 evt_name = data.evt
+
+            if data.groupId >= self.all_group_num0:
+                evt_name = evt_name + '_ALL'
 
             # 原始指标均用大写，以示区分
             evt_name = evt_name.upper()
