@@ -55,7 +55,7 @@ docker images
 回显中若有名为waasbooster，TAG为1.0.0的镜像出现，则构建成功。
 
 ## RPM部署
-具体安装指南可参考[链接](https://待补充)。
+具体安装指南可参考[链接](https://www.hikunpeng.com/document/detail/zh/kunpengcpfs/appAccelFeatures/waas/kunpeng_waasbooster_zn_28_009.html)。
 
 # 快速上手
 ## pod部署
@@ -88,4 +88,4 @@ systemctl status waasbooster
 # 许可证书
 WAAS Booster主导开源，具体开源协议类型参考[LICENSE](https://gitcode.com/BoostKit/waas/blob/waasbooster/LICENSE)。
 # 参考文档
-[安装指南](https://)
+[安装指南](https://www.hikunpeng.com/document/detail/zh/kunpengcpfs/appAccelFeatures/waas/kunpeng_waasbooster_zn_28_002.html)
