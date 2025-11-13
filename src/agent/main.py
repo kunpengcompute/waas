@@ -99,13 +99,6 @@ def main():
         if recorder:
             recorder.insert(data)
         payload = _processor.process(data)
-        timestamp = payload['start_time'].timestamp()
-        for group_id, group_data in payload['all'].items():
-
-            packed_bytes = util.packup(group_data, timestamp)
-            logging.debug("The packed bytes (length: %s) for group %s is %s" % (len(packed_bytes), group_id, packed_bytes))
-            logging.debug("The unpacked bytes for group %s is %s" % (group_id, util.unpack(packed_bytes, DataProcessor.features.keys())))
-
         _messenger.send_data(payload)
         advice = _messenger.get_advice()
 
