@@ -29,7 +29,7 @@ def packup_chunk(group_features):
         # 以后每4/8字节存储一个数值
         if metric_name.isupper():
             # 原始指标用8字节无符号整数
-            packed = struct.pack(">Q", metric_value)
+            packed = struct.pack(">Q", int(metric_value))
         else:
             # 复合指标用4字节浮点数
             packed = struct.pack(">f", metric_value)

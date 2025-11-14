@@ -44,7 +44,7 @@ class Messenger:
             command = "%s %s %s" % (IPMI_PREFIX, length_byte, data_bytes_str)
             command_list.append(command)
 
-        logging.debug("\n 总共分割为 %d 各命令" % len(command_list))
+        logging.debug("\n 总共分割为 %d 条命令" % len(command_list))
 
         last_output = b""
         for i, cmd in enumerate(command_list):
