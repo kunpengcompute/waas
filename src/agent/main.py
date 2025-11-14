@@ -10,7 +10,8 @@ import logging
 
 import util
 from sample import PerfCount
-from data_process import DataProcessor, Layer
+from data_process import DataProcessor
+from layers.numa_reduction import NumaReduction
 from messenger import Messenger
 from handler import Handler
 from data_recorder import DataRecorder
@@ -85,8 +86,10 @@ def main():
     _counter = PerfCount(cpu_list=cpu_list)
     _processor = DataProcessor()
 
-    _dummy_layer = Layer()
-    _processor.add_porcesser("dummy", [_dummy_layer])
+    # 按numa聚合特征
+    _numa_reduction = NumaReduction()
+    _processor.add_porcesser("numa_reduction", [_numa_reduction])
+
     _messenger = Messenger()
     _handler = Handler()
     recorder = None
@@ -99,13 +102,6 @@ def main():
         if recorder:
             recorder.insert(data)
         payload = _processor.process(data)
-        timestamp = payload['start_time'].timestamp()
-        for group_id, group_data in payload['all'].items():
-
-            packed_bytes = util.packup(group_data, timestamp)
-            logging.debug("The packed bytes (length: %s) for group %s is %s" % (len(packed_bytes), group_id, packed_bytes))
-            logging.debug("The unpacked bytes for group %s is %s" % (group_id, util.unpack(packed_bytes, DataProcessor.features.keys())))
-
         _messenger.send_data(payload)
         advice = _messenger.get_advice()
 

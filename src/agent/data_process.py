@@ -27,10 +27,8 @@ class DataProcessor():
         "int.ratio"                      : _div("INT_SPEC", "INST_SPEC"),
         "fp.ratio"                       : _div("FP_SPEC", "INST_SPEC"),
         "vector.ratio"                   : _add("SIMD_INST_SPEC", "SVE_INST_SPEC", "ASE_INST_SPEC") / _cpy("INST_SPEC"),
-        "CPU_CYCLES"                     : _cpy("CPU_CYCLES"),
         "cpu.cycles:u/a"                 : _div("CPU_CYCLES", "CPU_CYCLES_ALL"),
-        "cpu.ipc"                        : _div("INST_RETIRED", "CPU_CYCLES") / IPC_VAL_MAX,
-        "cpu.ipc:a"                      : _div("INST_RETIRED_ALL", "CPU_CYCLES_ALL") / IPC_VAL_MAX,
+        "cpu.ipc"                        : _div("INST_RETIRED", "CPU_CYCLES") / IPC_VAL_MAX, # 参与运算各数据默认是user态
         "branch.mpi"                     : _div("BR_MIS_PRED_RETIRED", "INST_RETIRED"),
         "l1i.mpi"                        : _div("L1I_CACHE_REFILL", "INST_RETIRED"),
         "l1d.mpi"                        : _div("L1D_CACHE_REFILL", "INST_RETIRED"),

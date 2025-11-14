@@ -4,12 +4,71 @@ Create: 2025-10-21
 Description: waas agent data process
 """
 
+import subprocess
+import logging
+import util
+
+IPMI_PREFIX = "ipmitool raw 0x30 0x93 0xdb 0x07 0x00 0x35"
+BUFFER_CLEARING_COMMAND = "ipmitool raw 0x30 0x93 0xdb 0x07 0x00 0x35 0x00"
+CHUNK_SIZE = 240 # ipmi命令限制，一次最多255字节数据
+
 class Messenger:
     def __init__(self):
         pass
 
+    '''
+    将data字典打包成字节序列，分批调用ipmi命令发送到bmc。data字典格式如下：
+    {
+      "start_time":  datetime.datetime对象
+      "all":  {
+            group_id:  {
+                metric_name: metric_value,
+                ...
+            },
+            ...
+        }
+    }
+    '''
     def send_data(self, data):
-        pass
+        # 获取帧大小+时间戳+有效数据 字节序列
+        packed_bytes = util.packup(data['all'],  data['start_time'].timestamp())
+        command_list = []
+        for i in range(0, len(packed_bytes), CHUNK_SIZE):
+            # 获取当前分片
+            chunk = packed_bytes[i:i + CHUNK_SIZE]
+            chunk_length = len(chunk)
+
+            length_byte = "0x%02x" % chunk_length
+            data_bytes_str = " ".join("0x%02x" % byte for byte in chunk)
+
+            command = "%s %s %s" % (IPMI_PREFIX, length_byte, data_bytes_str)
+            command_list.append(command)
+
+        logging.debug("\n 总共分割为 %d 条命令" % len(command_list))
+
+        last_output = b""
+        for i, cmd in enumerate(command_list):
+            logging.debug("\n Running %s(th) command: %s..." % (i, cmd))
+            result = subprocess.run(cmd.split(), shell=False, capture_output=True, timeout=30)
+            if result.returncode != 0:
+                # 命令执行失败，执行清理命令
+                clear_result = subprocess.run(BUFFER_CLEARING_COMMAND.split(), shell=False, capture_output=True, timeout=30)
+
+                error_msg = "命令 %s: %s 执行失败，回显: %s\n" % (i, cmd, result.stdout)
+                if result.stderr:
+                    error_msg += "原始输出：%s" % (result.stderr.decode("utf-8", errors="ignore"))
+
+                # 添加清理命令执行结果信息
+                if clear_result.returncode != 0:
+                    error_msg += "\n清理命令执行也失败，返回码: %d" % clear_result.returncode
+                else:
+                    error_msg += "\n已执行清理命令清空缓冲区"
+
+                raise Exception(error_msg)
+
+            last_output = result.stdout
+
+        return last_output
 
     def get_advice(self):
         return {}
