@@ -20,26 +20,25 @@
 #define PRINT_ONLY 0x1111ffff
 #define NOTHING_CHANGED 0xffffffff
 
-#define MRSSTR(opcode) "mrs %0, " #opcode ""
-#define MRSASM(reg, opcode) asm volatile(MRSSTR(opcode) : "=r"(reg))
 #define MSRSTR(opcode) "msr " #opcode ", %0"
 #define MSRASM(reg, opcode) asm volatile(MSRSTR(opcode)::"r"(reg))
-
-#define MODI_REG(para, name, opcode) \
+#define WRITE_REG(para, opcode) \
     if ((para) != NOTHING_CHANGED) { \
         MSRASM(para, opcode); \
     } \
 
+#define MRSSTR(opcode) "mrs %0, " #opcode ""
+#define MRSASM(reg, opcode) asm volatile(MRSSTR(opcode) : "=r"(reg))
 #define READ_REG(para, opcode) \
     if ((para) == PRINT_ONLY) { \
         MRSASM(para, opcode); \
     } \
 
-#define MODI_REG_TYPE2(para, opcode) MODI_REG(para, para, opcode)
-
+#define GEN3 0xd02
+#define GEN5 0xd06
 const unsigned long SUPPORT_PART_ID[] = {
-    0xd02,
-    0xd06,
+    GEN3,
+    GEN5,
 };
 
 enum GORUP {
@@ -88,39 +87,39 @@ enum GORUP {
 static void write_cpu_registers(void *data)
 {
     long long unsigned int *group = (long long unsigned int *)data;
-    MODI_REG_TYPE2(group[12], S3_1_c15_c0_0)
-    MODI_REG_TYPE2(group[13], S3_1_c15_c0_1)
-    MODI_REG_TYPE2(group[14], S3_1_c15_c0_4)
-    MODI_REG_TYPE2(group[15], S3_1_c11_c0_2)
-    MODI_REG_TYPE2(group[16], S3_1_c15_c2_0)
-    MODI_REG_TYPE2(group[17], S3_1_c15_c2_2)
-    MODI_REG_TYPE2(group[18], S3_1_c15_C2_5)
-    MODI_REG_TYPE2(group[1], S3_1_c15_C3_2)
-    MODI_REG_TYPE2(group[2], S3_1_c15_C3_3)
-    MODI_REG_TYPE2(group[19], S3_1_c15_C3_4)
-    MODI_REG_TYPE2(group[3], S3_1_c15_C5_3)
-    MODI_REG_TYPE2(group[4], S3_1_c15_C6_1)
-    MODI_REG_TYPE2(group[5], S3_1_c15_C6_3)
-    MODI_REG_TYPE2(group[6], S3_1_c15_C6_4)
-    MODI_REG_TYPE2(group[7], S3_1_c15_C6_5)
-    MODI_REG_TYPE2(group[8], S3_1_c15_C6_6)
-    MODI_REG_TYPE2(group[9], S3_1_c15_C6_7)
-    MODI_REG_TYPE2(group[10], S3_1_c15_C7_0)
-    MODI_REG_TYPE2(group[11], S3_1_c15_C7_1)
-    MODI_REG_TYPE2(group[20], S3_1_c15_C7_2)
-    MODI_REG_TYPE2(group[21], S3_1_c15_C7_3)
-    MODI_REG_TYPE2(group[22], S3_1_c15_C7_4)
-    MODI_REG_TYPE2(group[23], S3_1_c15_c7_5)
-    MODI_REG_TYPE2(group[24], S3_1_c15_C6_0)
-    MODI_REG_TYPE2(group[25], S3_1_c15_c8_3)
-    MODI_REG_TYPE2(group[26], S3_1_c15_c8_5)
-    MODI_REG_TYPE2(group[27], S3_1_c15_c8_6)
-    MODI_REG_TYPE2(group[0], S3_1_c15_c9_5)
-    MODI_REG_TYPE2(group[28], S3_1_c15_c8_7)
-    MODI_REG_TYPE2(group[29], S3_1_c15_c9_0)
-    MODI_REG_TYPE2(group[30], S3_1_c15_c4_6)
-    MODI_REG_TYPE2(group[31], S3_1_c15_c4_7)
-    MODI_REG_TYPE2(group[32], S3_1_c15_c5_2)
+    WRITE_REG(group[12], S3_1_c15_c0_0)
+    WRITE_REG(group[13], S3_1_c15_c0_1)
+    WRITE_REG(group[14], S3_1_c15_c0_4)
+    WRITE_REG(group[15], S3_1_c11_c0_2)
+    WRITE_REG(group[16], S3_1_c15_c2_0)
+    WRITE_REG(group[17], S3_1_c15_c2_2)
+    WRITE_REG(group[18], S3_1_c15_C2_5)
+    WRITE_REG(group[1], S3_1_c15_C3_2)
+    WRITE_REG(group[2], S3_1_c15_C3_3)
+    WRITE_REG(group[19], S3_1_c15_C3_4)
+    WRITE_REG(group[3], S3_1_c15_C5_3)
+    WRITE_REG(group[4], S3_1_c15_C6_1)
+    WRITE_REG(group[5], S3_1_c15_C6_3)
+    WRITE_REG(group[6], S3_1_c15_C6_4)
+    WRITE_REG(group[7], S3_1_c15_C6_5)
+    WRITE_REG(group[8], S3_1_c15_C6_6)
+    WRITE_REG(group[9], S3_1_c15_C6_7)
+    WRITE_REG(group[10], S3_1_c15_C7_0)
+    WRITE_REG(group[11], S3_1_c15_C7_1)
+    WRITE_REG(group[20], S3_1_c15_C7_2)
+    WRITE_REG(group[21], S3_1_c15_C7_3)
+    WRITE_REG(group[22], S3_1_c15_C7_4)
+    WRITE_REG(group[23], S3_1_c15_c7_5)
+    WRITE_REG(group[24], S3_1_c15_C6_0)
+    WRITE_REG(group[25], S3_1_c15_c8_3)
+    WRITE_REG(group[26], S3_1_c15_c8_5)
+    WRITE_REG(group[27], S3_1_c15_c8_6)
+    WRITE_REG(group[0], S3_1_c15_c9_5)
+    WRITE_REG(group[28], S3_1_c15_c8_7)
+    WRITE_REG(group[29], S3_1_c15_c9_0)
+    WRITE_REG(group[30], S3_1_c15_c4_6)
+    WRITE_REG(group[31], S3_1_c15_c4_7)
+    WRITE_REG(group[32], S3_1_c15_c5_2)
 }
 
 static void read_cpu_registers(void *data)
