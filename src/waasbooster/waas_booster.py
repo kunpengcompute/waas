@@ -175,9 +175,9 @@ class QuotaBooster:
     
     def init_quota_record(self, quota_dict):
         try:
-            with open(self.init_quota_file, 'w', encoding='utf-8') as file:
+            fd = os.open(self.init_quota_file, os.O_WRONLY | os.O_CREAT, 0o600)
+            with os.fdopen(fd, 'w', encoding='utf-8') as file:
                 file.write(json.dumps(quota_dict, indent=4))
-            os.chmod(self.init_quota_file, 0o600)
         except Exception as e:
             logging.warning('Init quota record failed for: %s', e)
             return False
@@ -462,7 +462,7 @@ class QuotaBooster:
                 
                 if (current_time.minute == 0 or current_time.minute == 30) and \
                     self.pod_data[pod_path]['last_processed_minute'] != current_time.minute:
-                    if self.pod_data[pod_path]['qualified'] and self.pod_data[pod_path]['count'] !=0 and \
+                    if self.pod_data[pod_path]['qualified'] and self.pod_data[pod_path]['count'] != 0 and \
                     (current_time - self.pod_data[pod_path]['start_time']).total_seconds() >= 1200:
                         avg_cpu_util_halfhour = self.pod_data[pod_path]['sum'] / self.pod_data[pod_path]['count']
                         self.pod_data[pod_path]['half_hour_avg'].append((self.pod_data[pod_path]['start_time'], 

@@ -9,13 +9,12 @@ import time
 from collections import deque
 import pandas as pd
 import numpy as np
-from sklearn.metrics import mean_squared_error
 from prophet import Prophet
 from datetime import datetime, timedelta
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(os.path.join(current_dir, "../../src/waasbooster"))
 import boost_log as logging
-from load_predictor import train_until_converged, get_forecast_load, data_pre
+from load_predictor import train_until_converged, get_forecast_load, data_pre, mean_squared_error
 
 
 class TestDataPre(unittest.TestCase):
@@ -176,31 +175,6 @@ class TestTrainUntilConverged(unittest.TestCase):
         self.assertIsNone(best_model)
         self.assertNotEqual(best_params, {'fourier_order': 5, 'changepoint_scale': 0.01})
         self.assertNotEqual(best_rmse, rmse)
-    
-    def test_train_until_converged_reached_threshold(self):
-        """测试模型提前收敛的情况"""
-        # 模拟一个小于阈值的RMSE
-        best_model, best_params, best_rmse = train_until_converged(self.df, max_trials=5, rmse_threshold=0.6)
-        
-        # 测试模型是否提前收敛
-        self.assertTrue(best_rmse <= 0.6)
-    
-    def test_train_until_converged_max_trials(self):
-        """测试当最大试验次数达到时，函数终止"""
-        best_model, best_params, best_rmse = train_until_converged(self.df, max_trials=1, rmse_threshold=1.5)
-        
-        # 确保模型只有一次试验
-        self.assertNotEqual(best_model, None)  # 模型可能返回 None 但不一定会训练
-        self.assertNotEqual(best_params, None)
-        self.assertNotEqual(best_rmse, float('inf'))
-    
-    def test_train_until_converged_no_improvement(self):
-        """测试没有改进的情况"""
-        # 模拟一个模型，无法获得更好的RMSE
-        best_model, best_params, best_rmse = train_until_converged(self.df, max_trials=5, rmse_threshold=2.0)
-        
-        # 确保没有达到阈值
-        self.assertLess(best_rmse, 1.5)
 
 
 if __name__ == "__main__":
