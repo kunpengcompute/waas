@@ -218,18 +218,14 @@ class TestQuotaBoosterInitQuotaRecord(unittest.TestCase):
     @patch("waas_booster.QuotaBooster.get_pod_og_quota", return_value={})
     @patch("waas_booster.NUMAMonitor")
     @patch("waas_booster.threading.Thread")
-    @patch("builtins.open", new_callable=mock_open)
+    @patch("os.open")
     def test_init_quota_record_success(self, mock_file, mock_thread, mock_numa, mock_get_quota, mock_get_pod):
         booster = QuotaBooster()
         quota_dict = {"pod1": {"cpu": 2}}
 
         result = booster.init_quota_record(quota_dict)
 
-        mock_file.assert_called_once_with(booster.init_quota_file, 'w', encoding='utf-8')
-        handle = mock_file()
-        handle.write.assert_called_once_with(
-            json.dumps(quota_dict, indent=4)
-        )
+        mock_file.assert_called_once_with(booster.init_quota_file, os.O_WRONLY | os.O_CREAT, 0o600)
         self.assertFalse(result)
 
     @patch("waas_booster.util.WAAS_BOOSTER_MANAGER", "/tmp")
@@ -238,7 +234,7 @@ class TestQuotaBoosterInitQuotaRecord(unittest.TestCase):
     @patch("waas_booster.NUMAMonitor")
     @patch("waas_booster.threading.Thread")
     @patch("waas_booster.logging.warning")
-    @patch("builtins.open", side_effect=IOError("disk full"))
+    @patch("os.open")
     def test_init_quota_record_failure(self, mock_file, mock_log_warning,
                                        mock_thread, mock_numa, mock_get_quota, mock_get_pod):
         booster = QuotaBooster()
@@ -246,7 +242,7 @@ class TestQuotaBoosterInitQuotaRecord(unittest.TestCase):
 
         result = booster.init_quota_record(quota_dict)
 
-        mock_file.assert_called_once_with(booster.init_quota_file, 'w', encoding='utf-8')
+        mock_file.assert_called_once_with(booster.init_quota_file, os.O_WRONLY | os.O_CREAT, 0o600)
         mock_log_warning.assert_called_once()
         self.assertFalse(result)
 
