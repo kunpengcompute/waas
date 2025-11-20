@@ -10,7 +10,8 @@ MAX_INT_FOR_UINT32 = 2 ** 32 - 1
 def packup(groups, timestamp):
     # 前8个字节是时间戳
     packed_bytes = struct.pack('>d', timestamp)
-    for group_id, group_data in groups.items():
+    for group_id in sorted(groups.keys()):
+        group_data = groups[group_id]
         group_bytes = packup_chunk(group_data) # 后续拼出所有group上的字节信息
         packed_bytes += group_bytes
         logging.debug("The original data for group %s is %s" % (group_id, group_data))
