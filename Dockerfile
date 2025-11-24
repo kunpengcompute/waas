@@ -1,12 +1,9 @@
 FROM python:3.9.9-slim as builder
 
 ARG PIP_PROXY
-#ARG PIP_PROXY="http://username:password@http.example.com:8080"
 
 ARG PIP_MIRROR
 ARG PIP_TRUST_HOST
-#ARG PIP_MIRROR="http://mirror.example.com/pypi/simple"
-#ARG PIP_TRUST_HOST="http://mirror.example.com"
 
 WORKDIR /app
 
