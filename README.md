@@ -83,7 +83,6 @@ systemctl status waasbooster
 
 # 贡献指南
 如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
-# 免责说明
 
 # 许可证书
 WAAS Booster主导开源，具体开源协议类型参考[LICENSE](https://gitcode.com/BoostKit/waas/blob/waasbooster/LICENSE)。
