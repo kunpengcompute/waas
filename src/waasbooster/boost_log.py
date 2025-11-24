@@ -20,6 +20,16 @@ class CustomRotatingFileHandler(RotatingFileHandler):
         self.max_backup_count = util.LOG_NUM
         self.max_archive_count = 5
 
+    def _open(self):
+        if not os.path.exists(self.baseFilename):
+            directory = os.path.dirname(self.baseFilename)
+            if directory and not os.path.exists(directory):
+                os.makedirs(directory, mode=0o755, exist_ok=True)
+            fd = os.open(self.baseFilename, os.O_CREAT | os.O_WRONLY | os.O_APPEND, 0o640)
+            return os.fdopen(fd, self.mode, encoding=self.encoding)
+        else:
+            return open(self.baseFilename, self.mode, encoding=self.encoding)
+
     def doRollover(self):
         # 关闭当前的文件句柄
         self.stream.close()
@@ -44,7 +54,6 @@ class CustomRotatingFileHandler(RotatingFileHandler):
         if len(backup_files) >= self.max_backup_count:
             self.archive_backups()
 
-
     def archive_backups(self):
         # 获取所有备份文件，排除当前日志文件
         backup_files = glob.glob(self.baseFilename + '.*')
@@ -54,7 +63,7 @@ class CustomRotatingFileHandler(RotatingFileHandler):
 
         # 确保LOG_PATH目录存在
         if not os.path.exists(util.LOG_SAVE_PATH):
-            os.makedirs(util.LOG_SAVE_PATH)
+            os.makedirs(util.LOG_SAVE_PATH, mode=0o755, exist_ok=True)
         
         # 生成压缩包文件名，包含时间戳，并指定保存路径
         end_time_raw = datetime.now(tz=timezone.utc) + timedelta(hours=8)
@@ -69,14 +78,20 @@ class CustomRotatingFileHandler(RotatingFileHandler):
 
         # 删除备份文件
         for file in backup_files:
-            os.remove(file)
+            try:
+                os.remove(file)
+            except OSError:
+                pass
 
         # 检查压缩包数量，超过max_archive_count则删除最老
         archives = glob.glob(os.path.join(util.LOG_SAVE_PATH, 'waasbooster_log_archive_*.tar.gz'))
         if len(archives) > self.max_archive_count:
             # 找到最老的压缩包
             oldest = min(archives, key=os.path.getctime)
-            os.remove(oldest)
+            try:
+                os.remove(oldest)
+            except OSError:
+                pass
 
 
 class Logger:
@@ -99,7 +114,13 @@ class Logger:
             self.logger.setLevel(logging.CRITICAL)
 
         # 创建用于写入日志文件的handler
-        fh = logging.FileHandler(log_file)
+        fh = CustomRotatingFileHandler(
+            log_file,
+            mode='a',
+            maxBytes=util.LOG_SIZE * 1024 * 1024,
+            backupCount=util.LOG_NUM,
+            encoding='utf-8'
+        )
         fh.setLevel(self.logger.level)
 
         # 创建用于将信息打印到输出台的handler
@@ -126,15 +147,22 @@ def set_log_instance(log_level: str):
     if log_level.upper() not in logging_levels:
         return
     
+    if g_log:
+        for handler in g_log.handlers[:]:
+            g_log.removeHandler(handler)
+            if hasattr(handler, 'close'):
+                handler.close()
+    
+    logger = logging.getLogger('waasbooster')
+    logger.setLevel(getattr(logging, log_level.upper()))
+
+    for handler in logger.handlers[:]:
+        logger.removeHandler(handler)
+        if hasattr(handler, 'close'):
+            handler.close()
+
     # 创建Formatter实例
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-
-    g_log = Logger('', util.LOG_PATH, level=log_level).get_logger()
-    logging.getLogger('paramiko').setLevel(logging.WARNING)
-
-    # 移除现有的日志处理器
-    for handler in g_log.handlers[:]:
-        g_log.removeHandler(handler)
 
     # 创建并配置RotatingFileHandler
     file_handler = CustomRotatingFileHandler(
@@ -149,8 +177,10 @@ def set_log_instance(log_level: str):
     console_handler = logging.StreamHandler()
     console_handler.setFormatter(formatter)
 
-    g_log.addHandler(file_handler)
-    g_log.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    logger.addHandler(console_handler)
+
+    g_log = logger
 
 
 def debug(msg: str, *args, **kwargs):
