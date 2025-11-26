@@ -31,7 +31,7 @@ class Messenger:
     '''
     def send_data(self, data):
         # 获取帧大小+时间戳+有效数据 字节序列
-        packed_bytes = util.packup(data['all'],  data['start_time'].timestamp())
+        packed_bytes = util.packup(data['all'],  data['start_time'].timestamp(), data.get('cores', 384))
         command_list = []
         for i in range(0, len(packed_bytes), CHUNK_SIZE):
             # 获取当前分片
