@@ -14,7 +14,7 @@ CHUNK_SIZE = 240 # ipmi命令限制，一次最多255字节数据
 
 class Messenger:
     def __init__(self):
-        pass
+        self.last_output = b""
 
     '''
     将data字典打包成字节序列，分批调用ipmi命令发送到bmc。data字典格式如下：
@@ -31,7 +31,7 @@ class Messenger:
     '''
     def send_data(self, data):
         # 获取帧大小+时间戳+有效数据 字节序列
-        packed_bytes = util.packup(data['all'],  data['start_time'].timestamp(), data.get('cores', 384))
+        packed_bytes = util.packup_request(data['all'], data['start_time'].timestamp(), data.get('cores', 384))
         command_list = []
         for i in range(0, len(packed_bytes), CHUNK_SIZE):
             # 获取当前分片
@@ -46,7 +46,6 @@ class Messenger:
 
         logging.debug("\n 总共分割为 %d 条命令" % len(command_list))
 
-        last_output = b""
         for i, cmd in enumerate(command_list):
             logging.debug("\n Running %s(th) command: %s..." % (i, cmd))
             result = subprocess.run(cmd.split(), shell=False, capture_output=True, timeout=30)
@@ -65,11 +64,12 @@ class Messenger:
                     error_msg += "\n已执行清理命令清空缓冲区"
 
                 raise Exception(error_msg)
-            logging.debug("\n Output: %s..." % result.stdout)
+            if i == len(command_list) - 1:
+                # 记录末次执行结果并打印
+                logging.info("Output: %s..." % result.stdout)
+                self.last_output = result.stdout
 
-            last_output = result.stdout
-
-        return last_output
+        return self.last_output
 
     def get_advice(self):
-        return {}
+        return util.unpack_response(self.last_output)

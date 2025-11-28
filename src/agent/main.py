@@ -12,12 +12,14 @@ import util
 from sample import PerfCount
 from data_process import DataProcessor
 from layers.numa_reduction import NumaReduction
+from handlers.core_handler import CoreHandler
+from handlers.soc_handler import SocHandler
 from messenger import Messenger
 from handler import Handler
 from data_recorder import DataRecorder
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s'
 )
 
@@ -91,7 +93,13 @@ def main():
     _processor.add_porcesser("numa_reduction", [_numa_reduction])
 
     _messenger = Messenger()
+
     _handler = Handler()
+    _core_handler = CoreHandler()
+    _soc_handler = SocHandler()
+    _handler.add_handler(util.Weapon.CORE.value, _core_handler)
+    _handler.add_handler(util.Weapon.SOC.value, _soc_handler)
+
     recorder = None
     if args.output != "":
         recorder = DataRecorder(args.output, args.maxrows)
