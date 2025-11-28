@@ -1,8 +1,19 @@
 import logging
 import struct
+from enum import Enum
+from typing import ClassVar, List, Tuple, Dict, Optional
 from data_process import DataProcessor
+from weapon.soc_group import SocGroup
+from weapon.core_group import CoreGroup, CoreRegItem
 
 MAX_INT_FOR_UINT32 = 2 ** 32 - 1
+# 全局宏定义变量
+PLACEHOLDER_0 = 0x00
+COMPONENT_ID_LEN = 3
+
+class Weapon(Enum):
+    SOC = "SOC"
+    CORE = "CORE"
 
 '''
 打包出 帧大小（四字节）+ 时间戳（8字节）+各核数据 的字节序列
@@ -55,3 +66,144 @@ def unpack_request(chunk_bytes, group_keys):
             group_features[metric_name] = struct.unpack(">f", chunk_bytes[start_index:start_index + 4])[0]
             start_index += 4
     return group_features
+
+# 响应数据预处理函数
+def preprocess_response(raw_data: bytes) -> Tuple[bytes, bool]:
+    """
+    预处理原始字节数据（支持带空格/换行的非连续格式）转换为连续字节流以用于解码
+    :param raw_data: 原始字节数据
+    :return: 元组 (处理后的字节流，处理成功标志)
+    """
+    logging.debug("Starting data preprocessing")
+
+    # 输入类型校验
+    if not isinstance(raw_data, bytes):
+        logging.debug("Preprocessing failed: input must be bytes type")
+        return b'', False
+
+    try:
+        # 字节转字符串 → 清除所有空白字符
+        data_str = raw_data.decode('utf-8').strip()
+        cleaned_str = ''.join(data_str.split())
+        logging.debug(f"Cleaned hex string: {cleaned_str[:100]}...")  # 截断长日志
+
+        # 校验十六进制字符串长度（必须为偶数）
+        if len(cleaned_str) % 2 != 0:
+            logging.debug(f"Preprocessing failed: odd hex length ({len(cleaned_str)})")
+            return b'', False
+
+        # 转换为连续字节流
+        processed_bytes = bytes.fromhex(cleaned_str)
+        logging.debug(f"Preprocessing succeeded: {len(processed_bytes)}B processed")
+        return processed_bytes, True
+
+    except ValueError as e:
+        logging.debug(f"Preprocessing failed: hex conversion error - {str(e)}")
+        return b'', False
+
+
+def unpack_core(core_bytes: bytes, group_count: int) -> List[CoreGroup]:
+    """
+    解码核寄存器字节数据，生成核寄存器分组列表
+    解析指定数量的核寄存器分组，自动跳过无效分组或解析失败的分组
+    :param core_bytes: 核寄存器原始字节数据
+    :param group_count: 核寄存器分组总数
+    :return: 解析成功的CoreGroup对象列表
+    """
+    core_groups: List[CoreGroup] = []
+    offset = 0
+    total_len = len(core_bytes)
+    logging.debug(f"Decoding core: group_count={group_count}, input_len={total_len}B")
+
+    for idx in range(group_count):
+        if offset >= total_len:
+            logging.debug(f"Core group {idx+1}: no remaining data")
+            break
+        try:
+            group = CoreGroup.deserialize(core_bytes[offset:])
+            core_groups.append(group)
+            offset += CoreGroup.SIZE + group.reg_count * CoreRegItem.SIZE
+            logging.debug(f"Core group {idx+1} decoded: {group}")
+        except ValueError as e:
+            logging.debug(f"Core group {idx+1} decode failed: {e}, skip")
+            offset += min(CoreGroup.SIZE, total_len - offset)
+    return core_groups
+
+
+def unpack_soc(soc_bytes: bytes, group_count: int) -> List[SocGroup]:
+    """
+    解码SOC寄存器字节数据，生成SOC寄存器分组列表
+    解析指定数量的SOC寄存器分组，自动跳过寄存器数为0的无效分组
+    :param soc_bytes: SOC寄存器原始字节数据
+    :param group_count: SOC寄存器分组总数
+    :return: 解析成功的SocGroup对象列表
+    """
+    soc_groups: List[SocGroup] = []
+    offset = 0
+    total_len = len(soc_bytes)
+    group_len = SocGroup.SIZE
+    logging.debug(f"Decoding SOC: group_count={group_count}, input_len={total_len}B")
+
+    for idx in range(group_count):
+        group_start = offset
+        group_end = group_start + group_len
+        if group_end > total_len:
+            logging.debug(f"SOC group {idx+1}: insufficient data")
+            break
+        try:
+            group = SocGroup.deserialize(soc_bytes[group_start:group_end])
+            if group.reg_count != PLACEHOLDER_0:
+                soc_groups.append(group)
+            logging.debug(f"SOC group {idx+1} decoded: {group}")
+        except ValueError as e:
+            logging.debug(f"SOC group {idx+1} decode failed: {e}, skip")
+        offset = group_end
+    return soc_groups
+
+
+def unpack_response(raw_data: bytes) -> Dict[str, List]:
+    """
+    主解码函数：预处理原始数据 + 分别解码核/SOC寄存器 + 组织返回结果
+    自动处理数据预处理、分组解析逻辑，返回结构化的解码结果
+    :param raw_data: 待解码的原始字节数据（支持带空格/换行的非连续格式）
+    :return: 字典格式的解码结果，包含核寄存器分组列表和SOC寄存器分组列表
+             键名分别为"Weapon.CORE.value"和"Weapon.SOC.value"对应的值
+    """
+    # 预处理
+    processed_data, ok = preprocess_response(raw_data)
+    if not ok or len(processed_data) < COMPONENT_ID_LEN:
+        logging.debug(f"Decode failed: invalid processed data (len={len(processed_data)})")
+        return {Weapon.CORE.value: [], Weapon.SOC.value: []}
+
+    logging.debug(f"Fixed header: 0x{processed_data[:COMPONENT_ID_LEN].hex().upper()}")
+    core_meta_start = COMPONENT_ID_LEN
+
+    # 解码核心参数
+    if core_meta_start + 1 > len(processed_data):
+        logging.debug("Decode failed: no core group count")
+        return {Weapon.CORE.value: [], Weapon.SOC.value: []}
+
+    core_groups = unpack_core(
+        processed_data[core_meta_start + 1:],
+        processed_data[core_meta_start]
+    )
+
+    # 计算SOC起始位置（核心数据总长度 = 分组计数字节 + 所有核心分组字节）
+    core_total_len = 1 + sum(CoreGroup.SIZE + g.reg_count * CoreRegItem.SIZE for g in core_groups)
+    soc_meta_start = core_meta_start + core_total_len
+
+    # 解码SOC参数
+    soc_groups = []
+    if soc_meta_start + 1 <= len(processed_data):
+        soc_groups = unpack_soc(
+            processed_data[soc_meta_start + 1:],
+            processed_data[soc_meta_start]
+        )
+    else:
+        logging.debug("No SOC group count data")
+
+    logging.debug(f"Decode completed: {len(core_groups)} core groups, {len(soc_groups)} SOC groups")
+    return {
+        Weapon.CORE.value: core_groups,
+        Weapon.SOC.value: soc_groups
+    }

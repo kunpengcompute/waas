@@ -71,4 +71,4 @@ class Messenger:
         return self.last_output
 
     def get_advice(self):
-        return {}
+        return util.unpack_response(self.last_output)
