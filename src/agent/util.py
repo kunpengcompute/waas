@@ -7,9 +7,10 @@ MAX_INT_FOR_UINT32 = 2 ** 32 - 1
 '''
 打包出 帧大小（四字节）+ 时间戳（8字节）+各核数据 的字节序列
 '''
-def packup(groups, timestamp):
+def packup(groups, timestamp, cores):
     # 前8个字节是时间戳
-    packed_bytes = struct.pack('>d', timestamp)
+    packed_bytes = struct.pack('>d', timestamp) # 8字节双精度浮点数
+    packed_bytes += struct.pack(">H", cores) # 2字节无符号整数
     for group_id in sorted(groups.keys()):
         group_data = groups[group_id]
         group_bytes = packup_chunk(group_data) # 后续拼出所有group上的字节信息

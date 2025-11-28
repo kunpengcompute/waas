@@ -97,6 +97,7 @@ class DataProcessor():
         return {
             "start_time": data['start_time'],
             "stop_time": data['stop_time'],
+            "cores": len(_data),
             "all": tmp_data
         }
 
