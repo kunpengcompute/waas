@@ -19,7 +19,7 @@ class CoreHandler(BaseHandler):
         执行CoreGroup对应的regtool命令：单个CoreGroup对应一条命令（含多个reg_item）
         命令格式：regtool set {first_core_id} {last_core_id} group{id1}=0x{val1} group{id2}=0x{val2}...
         """
-        logging.debug(f"[CoreHandler] Applying core advice: {len(advice)} groups")
+        logging.info(f"[CoreHandler] Applying core advice: {len(advice)} groups: %s", advice)
         if not advice:
             return
 
@@ -55,7 +55,7 @@ class CoreHandler(BaseHandler):
                     stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                     encoding="utf-8", timeout=30
                 )
-                logging.info(f"[CoreHandler] Command executed successfully: {cmd}")
+                logging.debug(f"[CoreHandler] Command executed successfully: {cmd}")
             except subprocess.CalledProcessError as e:
                 logging.error(
                     f"[CoreHandler] Command failed (code={e.returncode}): {cmd} | Error: {e.stderr.strip()}"

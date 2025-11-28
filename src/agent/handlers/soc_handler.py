@@ -19,7 +19,7 @@ class SocHandler(BaseHandler):
         命令格式：devmem 0x{addr_hex} w 0x{value_hex}
         规则：addr_hex 不补0（原生长度），value_hex 补0到16位，均为小写十六进制
         """
-        logging.debug(f"[SocHandler] Applying SOC advice: {len(advice)} groups")
+        logging.info(f"[SocHandler] Applying SOC advice: {len(advice)} groups: %s", advice)
         if not advice:
             return
 
@@ -53,7 +53,7 @@ class SocHandler(BaseHandler):
                         stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                         encoding="utf-8", timeout=30
                     )
-                    logging.info(f"[SocHandler] Command executed successfully: {cmd}")
+                    logging.debug(f"[SocHandler] Command executed successfully: {cmd}")
                 except subprocess.CalledProcessError as e:
                     logging.error(
                         f"[SocHandler] Command failed (code={e.returncode}): {cmd} | Error: {e.stderr.strip()}"

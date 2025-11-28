@@ -19,7 +19,7 @@ from handler import Handler
 from data_recorder import DataRecorder
 
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s'
 )
 
