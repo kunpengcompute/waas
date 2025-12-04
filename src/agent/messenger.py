@@ -64,7 +64,7 @@ class Messenger:
                     error_msg += "\n已执行清理命令清空缓冲区"
 
                 raise Exception(error_msg)
-            if i == len(command_list) - 1:
+            if i == len(command_list) - 1 and result.stdout != self.last_output: # 减少刷屏
                 # 记录末次执行结果并打印
                 logging.info("Output: %s..." % result.stdout)
                 self.last_output = result.stdout
