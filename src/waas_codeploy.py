@@ -201,6 +201,7 @@ class WaasCodeploy:
             cgroup_metric_dict = self.get_cgroup_metric()
         for cgroup, cgroup_info in cgroup_metric_dict.items():
             monitor_metric = cgroup_info.get(util.OVERLOAD_METRIC).get(util.METRIC_INDEX)
+            logging.debug("cgroup %s monitor_metric is: %s", cgroup, monitor_metric)
             if monitor_metric >= util.OVERLOAD_THRE:
                 return True
         return False
