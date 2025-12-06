@@ -163,20 +163,20 @@ class WaasCodeploy:
         self.metric_monitor_thread.start()
         time.sleep(util.MONITOR_DURATION)
         while self.running:
+            pid_map = self.get_target_pid(util.PROC_LIST)
+            pid_info = self.get_thread_bind_core(pid_map)
+            pid_cgroup_core = self.get_pid_croup_core(pid_map)
+            if pid_map != self.pid_map or pid_cgroup_core != init_pid_cgroup_core or pid_info != init_pid_info:
+                self.pid_map = pid_map
+                init_pid_cgroup_core = pid_cgroup_core
+                _ = self.refresh_init_pid_info(pid_info)
+                self.refresh_monitor()
+                _ = self.bind_physical_core(pid_cgroup_core)
+                init_pid_info = self.get_thread_bind_core(self.pid_map)
+                first_flag = True
             if self.cgroup_metric_overhead():
-                pid_map = self.get_target_pid(util.PROC_LIST)
-                pid_info = self.get_thread_bind_core(pid_map)
-                pid_cgroup_core = self.get_pid_croup_core(pid_map)
-                
                 if first_flag:
                     first_flag = False
-                    _ = self.bind_physical_core(pid_cgroup_core)
-                    init_pid_info = self.get_thread_bind_core(self.pid_map)
-                elif pid_map != self.pid_map or pid_cgroup_core != init_pid_cgroup_core or pid_info != init_pid_info:
-                    self.pid_map = pid_map
-                    init_pid_cgroup_core = pid_cgroup_core
-                    _ = self.refresh_init_pid_info(pid_info)
-                    self.refresh_monitor()
                     _ = self.bind_physical_core(pid_cgroup_core)
                     init_pid_info = self.get_thread_bind_core(self.pid_map)
             time.sleep(util.WORK_INTERVAL)
