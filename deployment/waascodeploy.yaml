@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: waascodeploy-daemon
+spec:
+  selector:
+    matchLabels:
+      app: waascodeploy
+  template:
+    metadata:
+      labels:
+        app: waascodeploy
+    spec:
+      # need high priority
+      priorityClassName: system-node-critical
+      # check processes to ensure all cgroups managed by us are created by docker/containerd/k8s
+      hostPID: true 
+      containers:
+      - name: waascodeploy
+        image: waascodeploy:1.0.0
+        imagePullPolicy: IfNotPresent
+        # command: ["/bin/sh", "-c", "--"]  # turn off the forecast function
+        # args: ["python /app/waas_codeploy.py --forecast False; while true; do sleep 3; done;"]  # turn off the forecast function
+        lifecycle:
+          preStop:
+            exec:
+              # wait waascodeploy recover all quota
+              command: ["/bin/sh", "-c", "pkill -f waas_codeploy.py; while pgrep -f waas_codeploy.py > /dev/null; do sleep 1; done"]
+        resources:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        securityContext:
+          runAsUser: 0 # need root to r/w cgroup info
+        volumeMounts:
+        - name: host-cgroup
+          mountPath: /sys/fs/cgroup
+          readOnly: false
+        - name: host-var
+          mountPath: /var/run
+          readOnly: false
+      terminationGracePeriodSeconds: 15
+      volumes:
+      - name: host-cgroup
+        hostPath:
+          path: /sys/fs/cgroup
+          type: Directory
+      - name: host-var
+        hostPath:
+          path: /var/run
+          type: Directory
