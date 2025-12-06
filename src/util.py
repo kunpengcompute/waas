@@ -15,6 +15,7 @@ import waas_log as logging
 WAAS_CODEPLOY_MANAGER = '/var/run/waas_codeploy/'
 PID_FILE = '/var/run/waas_codeploy/waas_codeploy.pid'
 LOG_PATH = '/var/log/waas_codeploy.log'
+PID_INFO_FILE = '/var/run/waas_codeploy/waas_codeploy.json'
 LOG_SAVE_PATH = '/var/log/'
 LOG_LEVEL_INFO = 'INFO'
 LOG_LEVEL_DEBUG = 'DEBUG'
@@ -35,7 +36,7 @@ CPUSET_CPUS = 'cgroup_cpuset_cpus'
 AFFINITY = 'process_affinity'
 QUERIES = 'queries'
 INFO = 'info'
-WORK_INTERVAL = 10
+WORK_INTERVAL = 30
 MONITOR_DURATION = 1
 BIND_CORE_NUM = 4
 WAIT_INTERVAL = 1
@@ -57,7 +58,7 @@ def set_affinity(tid_list, cpu_list):
         logging.warning("Cpu bind list is empty")
         return False
     elif not tid_list:
-        logging.warning("Tid bind list is empty")
+        logging.debug("Tid bind list is empty")
         return False
     for tid in tid_list:
         try:
@@ -78,7 +79,7 @@ def get_threads_psutil(pid):
     获取进程的所有线程'''
     try:
         # 获取进程对象
-        p = psutil.Process(pid)
+        p = psutil.Process(int(pid))
         threads = p.threads()
         spids = [t.id for t in threads]
         
