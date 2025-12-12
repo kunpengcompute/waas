@@ -12,14 +12,21 @@
 
 import os
 import re
-import time
-import argparse
 import psutil
 import re
 from typing import List, Dict, Optional, Tuple, Set
 
 import waas_log as logging
 
+
+# 自定义开关和参数
+# NUMA迁移功能
+NUMA_TRANSFER = True
+NUMA_TRANSFER_PROC_LIST = ['SPECjbb', 'spark']
+# 资源限制功能
+RESOURCE_RESTRICT = True
+RESTRICT_PROC_LIST = ['spark']
+RESTRICT_PARAM = {'MB': 20}
 
 WAAS_CODEPLOY_MANAGER = '/var/run/waas_codeploy/'
 PID_FILE = '/var/run/waas_codeploy/waas_codeploy.pid'
@@ -51,8 +58,6 @@ MONITOR_DURATION = 1
 BIND_CORE_NUM = 4
 WAIT_INTERVAL = 1
 PROC_LIST = ['SPECjbb']
-NUMA_TRANSFER_PROC_LIST = ['SPECjbb', 'spark']
-RESTRIC_PROC_LIST = ['spark']
 EVT_LIST = [
     "l1d_tlb_refill", "l1d_tlb",
     "l1i_tlb_refill", "l1i_tlb",
@@ -62,7 +67,7 @@ EVT_LIST = [
 OVERLOAD_METRIC = 'l2i' 
 METRIC_INDEX = 'miss_rate'
 OVERLOAD_THRE = 0.01
-NUMA_TRANSFER = True
+
 
 def set_affinity(tid_list, cpu_list):
     '''

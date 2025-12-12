@@ -21,6 +21,7 @@ import util
 import waas_log as logging
 from metric_monitor import MetricMonitor
 from numa_transfer import NumaTransfer
+from resource_restrict import ResctrlManager
 
 WC = None
 WC_RUNNING = True
@@ -41,6 +42,8 @@ class WaasCodeploy:
         self.numa_transfer_knob = util.NUMA_TRANSFER
         self.numa_transfer_last_time = time.time()
         self.base_mount, _ = util.find_cpuset_mountpoint()
+        self.resource_restrict_knob = util.RESOURCE_RESTRICT
+        self.init_restrict_cgroup_list = []
 
     @staticmethod
     def update_pid_core(pid_map, pid_core_dict):
@@ -190,6 +193,8 @@ class WaasCodeploy:
         time.sleep(util.MONITOR_DURATION)
 
         while self.running:
+            if self.resource_restrict_knob:
+                _ = self.resource_ctrl()
             _ = self.numa_transfer()
             pid_map = self.get_target_pid(util.PROC_LIST)
             pid_info = self.get_thread_bind_core(pid_map)
@@ -213,6 +218,22 @@ class WaasCodeploy:
 
             time.sleep(util.WORK_INTERVAL)
 
+    def resource_ctrl(self):
+        # 初始化resource记录
+        restrict_pid_map = self.get_target_pid(util.RESTRICT_PROC_LIST)
+        restrict_cgroup_list = self.get_cgroup_list(restrict_pid_map)
+        restrict_pool = []
+        if restrict_cgroup_list:
+            for cgroup in restrict_cgroup_list:
+                cgroup_path = os.path.join(self.base_mount, cgroup[1:])
+                if cgroup_path not in self.init_restrict_cgroup_list:
+                    self.init_restrict_cgroup_list.append(cgroup_path)
+                    restrict_pool.append(cgroup_path)
+        if restrict_pool:
+            manager = ResctrlManager(util.RESTRICT_PARAM.get('MB'))
+            manager.process_containers(restrict_pool)
+        return self.init_restrict_cgroup_list
+
     def numa_transfer(self):
         cgroup_move_dict = {}
         if self.numa_transfer_knob:
@@ -221,7 +242,7 @@ class WaasCodeploy:
             cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
             cgroup_dict = self.get_cgroup_cpuset(cgroup_list)
             logging.info('Transfer cgroup list is %s', cgroup_list)
-            
+
             if numa_transfer_current_time - self.numa_transfer_last_time > 5 * util.WORK_INTERVAL:
                 transfer = NumaTransfer(interval=util.MONITOR_DURATION)
                 cgroup_move_dict = transfer.balance_load(cgroup_list)
@@ -294,6 +315,10 @@ class WaasCodeploy:
                 spid = util.get_threads_psutil(pid)
                 result = util.set_affinity(spid, cpu_list)
             logging.info("Pid init affinity restored.")
+        if self.init_restrict_cgroup_list:
+            manager = ResctrlManager('100')
+            manager.process_containers(self.init_restrict_cgroup_list)
+            logging.info("Resource schemata restored.")
         return
 
 

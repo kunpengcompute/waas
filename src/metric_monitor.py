@@ -14,7 +14,6 @@
 import time
 import copy
 import threading
-import argparse
 import kperf
 from collections import defaultdict
 

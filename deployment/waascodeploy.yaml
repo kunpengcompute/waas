@@ -49,6 +49,9 @@ spec:
         - name: host-var
           mountPath: /var/run
           readOnly: false
+        - name: host-resctrl
+          mountPath: /sys/fs/resctrl
+          readOnly: false
       terminationGracePeriodSeconds: 15
       volumes:
       - name: host-cgroup
@@ -58,4 +61,8 @@ spec:
       - name: host-var
         hostPath:
           path: /var/run
+          type: Directory
+      - name: host-resctrl
+        hostPath:
+          path: /sys/fs/resctrl
           type: Directory
