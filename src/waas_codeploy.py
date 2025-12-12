@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
 # 版权所有 (c) 华为技术有限公司 2025-2025
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import signal
@@ -11,6 +20,7 @@ import argparse
 import util
 import waas_log as logging
 from metric_monitor import MetricMonitor
+from numa_transfer import NumaTransfer
 
 WC = None
 WC_RUNNING = True
@@ -20,12 +30,17 @@ class WaasCodeploy:
     def __init__(self) -> None:
         self.pid_file = util.PID_FILE
         self.pid_map = {}
+        self.transfer_pid_map = {}
         self.init_pid_info = {}
+        self.init_cgroup_info = {}
         self.init_pid_info_file = util.PID_INFO_FILE
         self.target_process_list = util.PROC_LIST
         self.metric_monitor = MetricMonitor(util.EVT_LIST)
         self.metric_monitor_thread = None
         self.running = True
+        self.numa_transfer_knob = util.NUMA_TRANSFER
+        self.numa_transfer_last_time = time.time()
+        self.base_mount, _ = util.find_cpuset_mountpoint()
 
     @staticmethod
     def update_pid_core(pid_map, pid_core_dict):
@@ -46,7 +61,7 @@ class WaasCodeploy:
         return True
 
     def init_bind_core_load(self):
-        init_pid_info = {}
+        init_pid_info = {'pid':{}, 'cgroups':{}}
         if os.path.exists(self.init_pid_info_file):
             try:
                 with open(self.init_pid_info_file, 'r', encoding='utf-8') as file:
@@ -96,7 +111,7 @@ class WaasCodeploy:
         try:
             if os.path.exists(self.pid_file):
                 os.remove(self.pid_file)
-            elif os.path.exists(self.init_pid_info_file):
+            if os.path.exists(self.init_pid_info_file):
                 os.remove(self.init_pid_info_file)
         except Exception as e:
             logging.warning('Cleanup failed for: %s', e)
@@ -144,32 +159,48 @@ class WaasCodeploy:
         _ = self.stop_monitor()
         self.metric_monitor = MetricMonitor(util.EVT_LIST)
         cgroup_list = self.get_cgroup_list(self.pid_map)
+        logging.info("cgroup_list is %s", cgroup_list)
         self.metric_monitor_thread = threading.Thread(target=self.metric_monitor.run,
                                             args=(cgroup_list, util.MONITOR_DURATION))
         self.metric_monitor_thread.start()
 
     def codeploy(self):
         first_flag = True
+        # 初始化pid记录
         self.pid_map = self.get_target_pid(util.PROC_LIST)
         init_pid_info = self.get_thread_bind_core(self.pid_map)
-        past_pid_info = self.init_bind_core_load()
-        if not self.init_pid_info:
-            self.init_pid_info = {**init_pid_info, **past_pid_info}
+        past_info = self.init_bind_core_load()
+        if not self.init_pid_info.get(util.PID):
+            self.init_pid_info.update({util.PID: {**init_pid_info, **past_info.get(util.PID)}})
             _ = self.init_bind_core_record(self.init_pid_info)
+        # 初始化cgroup记录
+        self.transfer_pid_map = self.get_target_pid(util.NUMA_TRANSFER_PROC_LIST)
+        transfer_cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
+        init_transfer_cgroup_dict = self.get_cgroup_cpuset(transfer_cgroup_list)
+        if not self.init_pid_info.get(util.CGROUP):
+            self.init_pid_info.update({util.CGROUP: {**init_transfer_cgroup_dict, **past_info.get(util.CGROUP)}})
+            _ = self.init_bind_core_record(self.init_pid_info)
+
         init_pid_cgroup_core = self.get_pid_croup_core(self.pid_map)
         cgroup_list = self.get_cgroup_list(self.pid_map)
+        logging.info("cgroup_list is %s", cgroup_list)
         self.metric_monitor_thread = threading.Thread(target=self.metric_monitor.run,
                                                        args=(cgroup_list, util.MONITOR_DURATION))
         self.metric_monitor_thread.start()
         time.sleep(util.MONITOR_DURATION)
+
         while self.running:
+            _ = self.numa_transfer()
             pid_map = self.get_target_pid(util.PROC_LIST)
             pid_info = self.get_thread_bind_core(pid_map)
             pid_cgroup_core = self.get_pid_croup_core(pid_map)
             if pid_map != self.pid_map or pid_cgroup_core != init_pid_cgroup_core or pid_info != init_pid_info:
+                transfer_pid_map = self.get_target_pid(util.NUMA_TRANSFER_PROC_LIST)
+                transfer_cgroup_list = self.get_cgroup_list(transfer_pid_map)
+                cgroup_info = self.get_cgroup_cpuset(transfer_cgroup_list)
                 self.pid_map = pid_map
                 init_pid_cgroup_core = pid_cgroup_core
-                _ = self.refresh_init_pid_info(pid_info)
+                _ = self.refresh_init_pid_info(pid_info, cgroup_info)
                 self.refresh_monitor()
                 _ = self.bind_physical_core(pid_cgroup_core)
                 init_pid_info = self.get_thread_bind_core(self.pid_map)
@@ -179,13 +210,46 @@ class WaasCodeploy:
                     first_flag = False
                     _ = self.bind_physical_core(pid_cgroup_core)
                     init_pid_info = self.get_thread_bind_core(self.pid_map)
+
             time.sleep(util.WORK_INTERVAL)
 
-    def refresh_init_pid_info(self, pid_info) -> dict:
+    def numa_transfer(self):
+        cgroup_move_dict = {}
+        if self.numa_transfer_knob:
+            numa_transfer_current_time = time.time()
+            self.transfer_pid_map = self.get_target_pid(util.NUMA_TRANSFER_PROC_LIST)
+            cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
+            cgroup_dict = self.get_cgroup_cpuset(cgroup_list)
+            logging.info('Transfer cgroup list is %s', cgroup_list)
+            
+            if numa_transfer_current_time - self.numa_transfer_last_time > 5 * util.WORK_INTERVAL:
+                transfer = NumaTransfer(interval=util.MONITOR_DURATION)
+                cgroup_move_dict = transfer.balance_load(cgroup_list)
+                self.numa_transfer_last_time = numa_transfer_current_time
+            if cgroup_move_dict:
+                _ = self.refresh_init_pid_info(None, cgroup_dict)
+
+        return cgroup_move_dict
+
+    def get_cgroup_cpuset(self, cgroup_list):
+        cgroup_dict = {}
+        if not cgroup_list:
+            return cgroup_dict
+        else:
+            for cgroup in cgroup_list:
+                cgroup_dict.update({cgroup: [util.read_cpuset_from_cgroup(self.base_mount, cgroup),
+                                            util.read_cpumem_from_cgroup(self.base_mount, cgroup)]})
+        return cgroup_dict
+
+    def refresh_init_pid_info(self, pid_info, cgroup_info) -> dict:
         if pid_info:
             for pid, info in pid_info.items():
-                if pid not in self.init_pid_info.keys():
-                    self.init_pid_info.update({pid: info})
+                if pid not in self.init_pid_info.get(util.PID).keys():
+                    self.init_pid_info[util.PID].update({pid: info})
+        if cgroup_info:
+            for cgroup, cg_info in cgroup_info.items():
+                if cgroup not in self.init_pid_info.get(util.CGROUP).keys():
+                    self.init_pid_info[util.CGROUP].update({cgroup: cg_info})
         _ = self.init_bind_core_record(self.init_pid_info)
         return self.init_pid_info
 
@@ -215,18 +279,22 @@ class WaasCodeploy:
                 cgroup_name = util.parse_proc_cgroup(pid).get(util.CPUSET)
                 if cgroup_name not in cgroup_list:
                     cgroup_list.append(cgroup_name)
-        logging.info("cgroup_list is %s", cgroup_list)
+        
         return cgroup_list
 
     def restore(self) -> None:
         if not self.init_pid_info:
             return
-        else:
-            for pid, cpu_list in self.init_pid_info.items():
+        if self.init_pid_info.get(util.CGROUP):
+            for cg, cg_info in self.init_pid_info.get(util.CGROUP).items():
+                cg_result = util.set_cgroup_cpuset(self.base_mount, cg, cg_info)
+            logging.info("Cgroup init cpuset restored.")
+        if self.init_pid_info.get(util.PID):
+            for pid, cpu_list in self.init_pid_info.get(util.PID).items():
                 spid = util.get_threads_psutil(pid)
                 result = util.set_affinity(spid, cpu_list)
             logging.info("Pid init affinity restored.")
-            return
+        return
 
 
 def sigterm_handler(signum, frame):

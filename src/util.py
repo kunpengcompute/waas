@@ -1,5 +1,14 @@
 # -*- coding: utf-8 -*-
 # 版权所有 (c) 华为技术有限公司 2025-2025
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import os
 import re
@@ -29,6 +38,7 @@ LOG_SIZE = 50
 QUERY = 'query'
 PID = 'pid'
 CPUSET = 'cpuset'
+CPUACCT = 'cpuacct'
 CGROUP = 'cgroups'
 CONTAINER_ILLEGAL = 'container_id_illegal'
 CPUSET_RAW = 'cgroup_cpuset_raw'
@@ -41,6 +51,8 @@ MONITOR_DURATION = 1
 BIND_CORE_NUM = 4
 WAIT_INTERVAL = 1
 PROC_LIST = ['SPECjbb']
+NUMA_TRANSFER_PROC_LIST = ['SPECjbb', 'spark']
+RESTRIC_PROC_LIST = ['spark']
 EVT_LIST = [
     "l1d_tlb_refill", "l1d_tlb",
     "l1i_tlb_refill", "l1i_tlb",
@@ -50,6 +62,7 @@ EVT_LIST = [
 OVERLOAD_METRIC = 'l2i' 
 METRIC_INDEX = 'miss_rate'
 OVERLOAD_THRE = 0.01
+NUMA_TRANSFER = True
 
 def set_affinity(tid_list, cpu_list):
     '''
@@ -222,6 +235,14 @@ def read_cpuset_from_cgroup(base_mount: str, cgroup_path: str) -> Optional[str]:
     return None
 
 
+def read_cpumem_from_cgroup(base_mount: str, cgroup_path: str) -> Optional[str]:
+    rel = cgroup_path.lstrip('/')
+    candidate = os.path.join(base_mount, rel, 'cpuset.mems')
+    if os.path.isfile(candidate):
+        return (read_file(candidate) or '').strip()
+    return None
+
+
 def parse_cpu_range_list(s: str) -> List[int]:
     """
     将 cpuset 表示 "0-3,5,7-8" -> [0,1,2,3,5,7,8]
@@ -277,7 +298,7 @@ def inspect_processes(idents: List[str], pid_map: dict) -> Dict:
         INFO: [],
     }
     logging.info("Target pid map is: %s", pid_map)
-    base_mount, is_v2 = find_cpuset_mountpoint()
+    base_mount, _ = find_cpuset_mountpoint()
     for ident, pids in pid_map.items():
         for pid in pids:
             proc_info = {
@@ -359,6 +380,34 @@ def get_physical_core(cpu_range: list) -> list:
     evens = [int(cpu) for cpu in cpu_range if cpu % 2 == 0]
     return evens
 
+
+def set_cgroup_cpuset(base_mount, cgroup, cpu_info):
+    cpuset = cpu_info[0]
+    cpumem = cpu_info[1]
+    if base_mount.endswith('/'):
+        base_mount = base_mount[:-1]
+    if cgroup.startswith('/'):
+        cgroup = cgroup[1:]
+
+    path = os.path.join(base_mount, cgroup, "cpuset.cpus")
+    if not os.path.exists(path):
+        logging.warning(f"Path not found: {path}")
+        return False
+    try:
+        # 写入新的 CPU 列表
+        with open(path, 'w') as f:
+            f.write(cpuset)
+            f.flush()
+        
+        # 同时需要更新 cpuset.mems 以确保内存亲和性（通常必须与 cpuset.cpus 匹配）
+        mems_path = os.path.join(base_mount, cgroup, "cpuset.mems")
+        if os.path.exists(mems_path):
+            with open(mems_path, 'w') as f:
+                f.write(str(cpumem))
+        return True
+    except Exception as e:
+        logging.warning(f"Failed to set cgroup cpuset: {e}")
+        return False
 
 
 if __name__ == '__main__':
