@@ -30,14 +30,19 @@ class ResctrlManager:
         批量处理容器路径列表
         :param cgroup_paths: list, 例如 ['/sys/fs/cgroup/cpuset/system.slice/docker-xxxxx']
         """
+        resctrl_group_path_list = []
         for cgroup_path in cgroup_paths:
-            self._process_single_container(cgroup_path)
+            resctrl_group_path = self._process_single_container(cgroup_path)
+            if resctrl_group_path:
+                resctrl_group_path_list.append(resctrl_group_path)
+        return resctrl_group_path_list
+
 
     def _process_single_container(self, cgroup_path):
         # 0. 基础校验与名称提取
         if not os.path.exists(cgroup_path):
             logging.warning(f"Cgroup path does not exist: {cgroup_path}")
-            return
+            return None
 
         # 提取 docker-xxxxx，通常是路径的最后一部分
         # 如果路径以 / 结尾，basename 可能为空，需要处理
@@ -65,6 +70,8 @@ class ResctrlManager:
             logging.warning("[Error] Permission denied. Please run as root.")
         except Exception as e:
             logging.warning(f"Failed to process {dir_name}: {e}")
+        
+        return resctrl_group_path
 
     def _migrate_tasks(self, src_cgroup_path, dst_resctrl_path):
         """
