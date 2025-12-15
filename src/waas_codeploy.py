@@ -44,6 +44,7 @@ class WaasCodeploy:
         self.base_mount, _ = util.find_cpuset_mountpoint()
         self.resource_restrict_knob = util.RESOURCE_RESTRICT
         self.init_restrict_cgroup_list = []
+        self.init_resctrl_group_path_list = []
 
     @staticmethod
     def update_pid_core(pid_map, pid_core_dict):
@@ -223,6 +224,7 @@ class WaasCodeploy:
         restrict_pid_map = self.get_target_pid(util.RESTRICT_PROC_LIST)
         restrict_cgroup_list = self.get_cgroup_list(restrict_pid_map)
         restrict_pool = []
+        resctrl_group_path_list = []
         if restrict_cgroup_list:
             for cgroup in restrict_cgroup_list:
                 cgroup_path = os.path.join(self.base_mount, cgroup[1:])
@@ -231,7 +233,11 @@ class WaasCodeploy:
                     restrict_pool.append(cgroup_path)
         if restrict_pool:
             manager = ResctrlManager(util.RESTRICT_PARAM.get('MB'))
-            manager.process_containers(restrict_pool)
+            resctrl_group_path_list = manager.process_containers(restrict_pool)
+        if resctrl_group_path_list:
+            for resctrl_group_path in resctrl_group_path_list:
+                if resctrl_group_path not in self.init_resctrl_group_path_list:
+                    self.init_resctrl_group_path_list.append(resctrl_group_path)
         return self.init_restrict_cgroup_list
 
     def numa_transfer(self):
@@ -317,8 +323,11 @@ class WaasCodeploy:
             logging.info("Pid init affinity restored.")
         if self.init_restrict_cgroup_list:
             manager = ResctrlManager('100')
-            manager.process_containers(self.init_restrict_cgroup_list)
+            _ = manager.process_containers(self.init_restrict_cgroup_list)
             logging.info("Resource schemata restored.")
+        if self.init_resctrl_group_path_list:
+            for resctrl_group_path in self.init_resctrl_group_path_list:
+                os.rmdir(resctrl_group_path)
         return
 
 

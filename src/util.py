@@ -21,10 +21,10 @@ import waas_log as logging
 
 # 自定义开关和参数
 # NUMA迁移功能
-NUMA_TRANSFER = True
+NUMA_TRANSFER = False
 NUMA_TRANSFER_PROC_LIST = ['SPECjbb', 'spark']
 # 资源限制功能
-RESOURCE_RESTRICT = True
+RESOURCE_RESTRICT = False
 RESTRICT_PROC_LIST = ['spark']
 RESTRICT_PARAM = {'MB': 20}
 
