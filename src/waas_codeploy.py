@@ -366,7 +366,7 @@ def waas_codeploy_main():
         logging.info('Initialize log module, log level set {}'.format(log_level))
         logging.info('Version: 1.0.0')
         # 创建管理文件
-        os.makedirs(util.WAAS_CODEPLOY_MANAGER, exist_ok=True)
+        os.makedirs(util.WAAS_CODEPLOY_MANAGER, mode=0o700, exist_ok=True)
         WC = WaasCodeploy(
         )
         WC.init_service()
