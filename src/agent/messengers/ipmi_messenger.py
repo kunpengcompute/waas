@@ -7,28 +7,16 @@ Description: waas agent data process
 import subprocess
 import logging
 import util
+from messengers.messenger import Messenger
 
 IPMI_PREFIX = "ipmitool raw 0x30 0x93 0xdb 0x07 0x00 0x35"
 BUFFER_CLEARING_COMMAND = "ipmitool raw 0x30 0x93 0xdb 0x07 0x00 0x35 0x00"
 CHUNK_SIZE = 240 # ipmi命令限制，一次最多255字节数据
 
-class Messenger:
+class IpmiMessenger(Messenger):
     def __init__(self):
-        self.last_output = b""
+        super().__init__()
 
-    '''
-    将data字典打包成字节序列，分批调用ipmi命令发送到bmc。data字典格式如下：
-    {
-      "start_time":  datetime.datetime对象
-      "all":  {
-            group_id:  {
-                metric_name: metric_value,
-                ...
-            },
-            ...
-        }
-    }
-    '''
     def send_data(self, data):
         # 获取帧大小+时间戳+有效数据 字节序列
         packed_bytes = util.packup_request(data['all'], data['start_time'].timestamp(), data.get('cores', 384))

@@ -14,7 +14,7 @@ from data_process import DataProcessor
 from layers.numa_reduction import NumaReduction
 from handlers.core_handler import CoreHandler
 from handlers.soc_handler import SocHandler
-from messenger import Messenger
+from messengers.ipmi_messenger import IpmiMessenger as Messenger
 from handler import Handler
 from data_recorder import DataRecorder
 
