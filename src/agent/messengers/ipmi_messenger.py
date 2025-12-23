@@ -1,7 +1,7 @@
 """
 Copyright (c) Huawei Technologies Co., Ltd. 2025. All rights reserved.
 Create: 2025-10-21
-Description: waas agent data process
+Description: waas agent data messenger (with ipmitool)
 """
 
 import subprocess
@@ -54,7 +54,7 @@ class IpmiMessenger(Messenger):
                 raise Exception(error_msg)
             if i == len(command_list) - 1 and result.stdout != self.last_output: # 减少刷屏
                 # 记录末次执行结果并打印
-                logging.info("Output: %s..." % result.stdout)
+                logging.info("[IpmiMessenger] Output: %s..." % result.stdout)
                 self.last_output = result.stdout
 
         return self.last_output
