@@ -115,7 +115,7 @@ class MetricMonitor:
 
         self.pd = kperf.open(kperf.PmuTaskType.COUNTING, pmu_attr)
         if self.pd == -1:
-            raise RuntimeError(f"kperf open failed: {kperf.error()}")
+            logging.warning("kperf open failed for: %s", kperf.error())
         try:
             while self.running:
                 kperf.enable(self.pd)

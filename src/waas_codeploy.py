@@ -45,6 +45,8 @@ class WaasCodeploy:
         self.resource_restrict_knob = util.RESOURCE_RESTRICT
         self.init_restrict_cgroup_list = []
         self.init_resctrl_group_path_list = []
+        self.last_cgroup_list = []
+        self.last_cgroup_dict = {}
 
     @staticmethod
     def update_pid_core(pid_map, pid_core_dict):
@@ -244,14 +246,17 @@ class WaasCodeploy:
         cgroup_move_dict = {}
         if self.numa_transfer_knob:
             numa_transfer_current_time = time.time()
-            self.transfer_pid_map = self.get_target_pid(util.NUMA_TRANSFER_PROC_LIST)
-            cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
-            cgroup_dict = self.get_cgroup_cpuset(cgroup_list)
-            logging.info('Transfer cgroup list is %s', cgroup_list)
-
             if numa_transfer_current_time - self.numa_transfer_last_time > 5 * util.WORK_INTERVAL:
+                self.transfer_pid_map = self.get_target_pid(util.NUMA_TRANSFER_PROC_LIST)
+                cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
+                cgroup_dict = self.get_cgroup_cpuset(cgroup_list)
+                logging.info('Transfer cgroup list is %s', cgroup_list)
                 transfer = NumaTransfer(interval=util.MONITOR_DURATION)
-                cgroup_move_dict = transfer.balance_load(cgroup_list)
+                _, _ = transfer.get_numa_load()
+                if cgroup_list != self.last_cgroup_list or cgroup_dict != self.last_cgroup_dict:
+                    cgroup_move_dict = transfer.balance_load(cgroup_list)
+                    self.last_cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
+                    self.last_cgroup_dict = self.get_cgroup_cpuset(self.last_cgroup_list)
                 self.numa_transfer_last_time = numa_transfer_current_time
             if cgroup_move_dict:
                 _ = self.refresh_init_pid_info(None, cgroup_dict)
