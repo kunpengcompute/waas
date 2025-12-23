@@ -47,6 +47,7 @@ class WaasCodeploy:
         self.init_resctrl_group_path_list = []
         self.last_cgroup_list = []
         self.last_cgroup_dict = {}
+        self.transfer_flag = True
 
     @staticmethod
     def update_pid_core(pid_map, pid_core_dict):
@@ -212,11 +213,13 @@ class WaasCodeploy:
                 self.refresh_monitor()
                 _ = self.bind_physical_core(pid_cgroup_core)
                 init_pid_info = self.get_thread_bind_core(self.pid_map)
-                first_flag = True
+                first_flag = False
             if self.cgroup_metric_overhead():
                 if first_flag:
                     first_flag = False
                     _ = self.bind_physical_core(pid_cgroup_core)
+                    self.pid_map = self.get_target_pid(util.PROC_LIST)
+                    init_pid_cgroup_core = self.get_pid_croup_core(self.pid_map)
                     init_pid_info = self.get_thread_bind_core(self.pid_map)
 
             time.sleep(util.WORK_INTERVAL)
@@ -253,10 +256,17 @@ class WaasCodeploy:
                 logging.info('Transfer cgroup list is %s', cgroup_list)
                 transfer = NumaTransfer(interval=util.MONITOR_DURATION)
                 _, _ = transfer.get_numa_load()
-                if cgroup_list != self.last_cgroup_list or cgroup_dict != self.last_cgroup_dict:
+                if self.transfer_flag:
                     cgroup_move_dict = transfer.balance_load(cgroup_list)
-                    self.last_cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
-                    self.last_cgroup_dict = self.get_cgroup_cpuset(self.last_cgroup_list)
+                    if cgroup_move_dict:
+                        self.transfer_flag = False
+                        self.last_cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
+                        self.last_cgroup_dict = self.get_cgroup_cpuset(self.last_cgroup_list)
+                elif cgroup_list != self.last_cgroup_list or cgroup_dict != self.last_cgroup_dict:
+                    cgroup_move_dict = transfer.balance_load(cgroup_list)
+                    if cgroup_move_dict:
+                        self.last_cgroup_list = self.get_cgroup_list(self.transfer_pid_map)
+                        self.last_cgroup_dict = self.get_cgroup_cpuset(self.last_cgroup_list)
                 self.numa_transfer_last_time = numa_transfer_current_time
             if cgroup_move_dict:
                 _ = self.refresh_init_pid_info(None, cgroup_dict)
@@ -309,7 +319,7 @@ class WaasCodeploy:
                 continue
             for pid in pids:
                 cgroup_name = util.parse_proc_cgroup(pid).get(util.CPUSET)
-                if cgroup_name and cgroup_name not in cgroup_list:
+                if cgroup_name and cgroup_name not in cgroup_list and cgroup_name != '/':
                     cgroup_list.append(cgroup_name)
         
         return cgroup_list
