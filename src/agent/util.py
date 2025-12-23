@@ -6,10 +6,8 @@ from data_process import DataProcessor
 from weapon.soc_group import SocGroup
 from weapon.core_group import CoreGroup, CoreRegItem
 
-MAX_INT_FOR_UINT32 = 2 ** 32 - 1
 # 全局宏定义变量
 PLACEHOLDER_0 = 0x00
-COMPONENT_ID_LEN = 3
 
 class Weapon(Enum):
     SOC = "SOC"
@@ -68,18 +66,18 @@ def unpack_request(chunk_bytes, group_keys):
     return group_features
 
 # 响应数据预处理函数
-def preprocess_response(raw_data: bytes) -> Tuple[bytes, bool]:
+def preprocess_response(raw_data: bytes) -> Optional[bytes]:
     """
     预处理原始字节数据（支持带空格/换行的非连续格式）转换为连续字节流以用于解码
     :param raw_data: 原始字节数据
-    :return: 元组 (处理后的字节流，处理成功标志)
+    :return: 处理后的字节流（成功，包括空字节b''）；None（失败）
     """
     logging.debug("Starting data preprocessing")
 
     # 输入类型校验
     if not isinstance(raw_data, bytes):
         logging.debug("Preprocessing failed: input must be bytes type")
-        return b'', False
+        return None  # 失败时返回None，下同
 
     try:
         # 字节转字符串 → 清除所有空白字符
@@ -90,16 +88,16 @@ def preprocess_response(raw_data: bytes) -> Tuple[bytes, bool]:
         # 校验十六进制字符串长度（必须为偶数）
         if len(cleaned_str) % 2 != 0:
             logging.debug(f"Preprocessing failed: odd hex length ({len(cleaned_str)})")
-            return b'', False
+            return None
 
         # 转换为连续字节流
         processed_bytes = bytes.fromhex(cleaned_str)
         logging.debug(f"Preprocessing succeeded: {len(processed_bytes)}B processed")
-        return processed_bytes, True
+        return processed_bytes
 
     except ValueError as e:
         logging.debug(f"Preprocessing failed: hex conversion error - {str(e)}")
-        return b'', False
+        return None
 
 
 def unpack_core(core_bytes: bytes, group_count: int) -> List[CoreGroup]:
@@ -161,43 +159,33 @@ def unpack_soc(soc_bytes: bytes, group_count: int) -> List[SocGroup]:
     return soc_groups
 
 
-def unpack_response(raw_data: bytes) -> Dict[str, List]:
+def unpack_response_content(content: Optional[bytes]) -> Dict[str, List]:
     """
     主解码函数：预处理原始数据 + 分别解码核/SOC寄存器 + 组织返回结果
     自动处理数据预处理、分组解析逻辑，返回结构化的解码结果
-    :param raw_data: 待解码的原始字节数据（支持带空格/换行的非连续格式）
+    :param content: 待解码的原始字节数据（支持带空格/换行的非连续格式），如果是None，则返回空调优手段
     :return: 字典格式的解码结果，包含核寄存器分组列表和SOC寄存器分组列表
              键名分别为"Weapon.CORE.value"和"Weapon.SOC.value"对应的值
     """
-    # 预处理
-    processed_data, ok = preprocess_response(raw_data)
-    if not ok or len(processed_data) < COMPONENT_ID_LEN:
-        logging.debug(f"Decode failed: invalid processed data (len={len(processed_data)})")
-        return {Weapon.CORE.value: [], Weapon.SOC.value: []}
-
-    logging.debug(f"Fixed header: 0x{processed_data[:COMPONENT_ID_LEN].hex().upper()}")
-    core_meta_start = COMPONENT_ID_LEN
-
-    # 解码核心参数
-    if core_meta_start + 1 > len(processed_data):
-        logging.debug("Decode failed: no core group count")
+    if content is None or len(content) < 1:
+        logging.debug(f"Decode failed: no core or soc group content.")
         return {Weapon.CORE.value: [], Weapon.SOC.value: []}
 
     core_groups = unpack_core(
-        processed_data[core_meta_start + 1:],
-        processed_data[core_meta_start]
+        content[1:],
+        content[0]
     )
 
     # 计算SOC起始位置（核心数据总长度 = 分组计数字节 + 所有核心分组字节）
     core_total_len = 1 + sum(CoreGroup.SIZE + g.reg_count * CoreRegItem.SIZE for g in core_groups)
-    soc_meta_start = core_meta_start + core_total_len
+    soc_meta_start = core_total_len
 
     # 解码SOC参数
     soc_groups = []
-    if soc_meta_start + 1 <= len(processed_data):
+    if soc_meta_start + 1 <= len(content):
         soc_groups = unpack_soc(
-            processed_data[soc_meta_start + 1:],
-            processed_data[soc_meta_start]
+            content[soc_meta_start + 1:],
+            content[soc_meta_start]
         )
     else:
         logging.debug("No SOC group count data")

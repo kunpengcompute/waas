@@ -68,4 +68,4 @@ class MMBIMessenger(Messenger):
         return self.last_output
 
     def get_advice(self):
-        return util.unpack_response(self.last_output)
+        return util.unpack_response_content(self.last_output)

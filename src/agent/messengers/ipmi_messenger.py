@@ -12,6 +12,7 @@ from messengers.messenger import Messenger
 IPMI_PREFIX = "ipmitool raw 0x30 0x93 0xdb 0x07 0x00 0x35"
 BUFFER_CLEARING_COMMAND = "ipmitool raw 0x30 0x93 0xdb 0x07 0x00 0x35 0x00"
 CHUNK_SIZE = 240 # ipmi命令限制，一次最多255字节数据
+COMPONENT_ID_LEN = 3 # ipmi返回头，一般是三字节，例如"db 07 00"
 
 class IpmiMessenger(Messenger):
     def __init__(self):
@@ -60,4 +61,9 @@ class IpmiMessenger(Messenger):
         return self.last_output
 
     def get_advice(self):
-        return util.unpack_response(self.last_output)
+        content = None
+        shrinked_bytes = util.preprocess_response(self.last_output)
+        if shrinked_bytes is not None:
+            logging.debug(f"Fixed header: 0x{shrinked_bytes[:COMPONENT_ID_LEN].hex().upper()}")
+            content = shrinked_bytes[COMPONENT_ID_LEN:] # 丢弃ipmi返回头部
+        return util.unpack_response_content(content)
