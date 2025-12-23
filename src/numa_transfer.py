@@ -216,6 +216,18 @@ class NumaTransfer:
             logging.warning(f"NUMA node {node_id} not found in topology.")
             return 0
 
+    def get_numa_load(self):
+        numa_usages = self.get_numa_cpu_usage() # {node: % usage}
+        if len(numa_usages) < 2:
+            logging.info("Single NUMA node detected. No balancing needed.")
+            return None, None
+
+        # 计算平均负载
+        avg_load = sum(numa_usages.values()) / len(numa_usages)
+        logging.info(f"NUMA Load: {numa_usages}, Average Load: {avg_load:.2f}%")
+        
+        return numa_usages, avg_load
+
     # -------------------------------------------------------------------------
     # 功能 3: 负载均衡迁移
     # -------------------------------------------------------------------------
@@ -224,20 +236,11 @@ class NumaTransfer:
         执行核心逻辑：将高负载 NUMA 的容器迁移到低负载 NUMA
         """        
         # 1. 获取当前状态
-        # 注意：这里会产生 sleep(interval)
-        numa_usages = self.get_numa_cpu_usage() # {node: % usage}
-        cgroups = self.get_cgroup_metrics(cgroup_list)     # list of dicts
-        
-        if len(numa_usages) < 2:
-            logging.info("Single NUMA node detected. No balancing needed.")
+        numa_usages, avg_load = self.get_numa_load()
+        if not numa_usages:
             return
-
+        cgroups = self.get_cgroup_metrics(cgroup_list)     # list of dicts
         numa_cpu_num = self.get_numa_cpu_count(0)
-    
-        # 计算平均负载
-        avg_load = sum(numa_usages.values()) / len(numa_usages)
-        logging.info(f"NUMA Load: {numa_usages}")
-        logging.info(f"Average Load: {avg_load:.2f}%")
 
         # 将 Cgroup 按所属 NUMA 分组
         numa_cgroups: Dict[int, List[Dict]] = {node: [] for node in numa_usages}
@@ -284,9 +287,10 @@ class NumaTransfer:
             moved_cg = None
             for cg in numa_cgroups[src_node]:
                 cg_usage = cg['usage']
-                # 预判迁移后的情况
-                if (virtual_load[dst_node] + cg_usage / numa_cpu_num < 90) and \
-                   (virtual_load[src_node] - cg_usage / numa_cpu_num > 10): # 不要把源节点负载清零
+                # 预判迁移后的情况，判断条件：源节点CPU利用率>=50，迁移后目标节点CPU利用率小于90，源节点大于10
+                if virtual_load[src_node] >= 40 and \
+                   (virtual_load[dst_node] + cg_usage / numa_cpu_num < 90) and \
+                   (virtual_load[src_node] - cg_usage / numa_cpu_num > 10):
                     
                     moved_cg = cg
                     break
