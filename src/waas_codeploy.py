@@ -304,7 +304,7 @@ class WaasCodeploy:
                 continue
             for pid in pids:
                 cgroup_name = util.parse_proc_cgroup(pid).get(util.CPUSET)
-                if cgroup_name not in cgroup_list:
+                if cgroup_name and cgroup_name not in cgroup_list:
                     cgroup_list.append(cgroup_name)
         
         return cgroup_list
