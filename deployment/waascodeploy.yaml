@@ -45,7 +45,7 @@ spec:
         - name: host-resctrl
           mountPath: /sys/fs/resctrl
           readOnly: false
-      terminationGracePeriodSeconds: 15
+      terminationGracePeriodSeconds: 30
       volumes:
       - name: host-cgroup
         hostPath:
