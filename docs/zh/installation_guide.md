@@ -19,7 +19,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >Master节点为K8s集群中的管理节点，业务节点为K8s集群中部署具体业务的节点。
 
-WAAS Booster是一个专为容器化环境设计的负载动态调度工具，根据不同的部署环境，WAAS Booster提供了两种主要的部署方式：RPM部署和K8s Pod部署。下面将详细介绍这两种部署方式的区别及其适用场景。
 ## 环境要求<a name="ZH-CN_TOPIC_0000002549864175"></a>
 
 本文基于openEuler操作系统提供指导，在正式操作前请确保软硬件均满足要求。

@@ -46,7 +46,7 @@
         docker build -t waasbooster:1.0.0 . 
         ```
 
-        命令中的"waasbooster"为构建后的镜像名，"1.0.0"为镜像TAG。 注意此处需要pip拉取依赖，如果需要使用pip代理，可使用以下命令指定代理服务器。
+        命令中的“waasbooster”为构建后的镜像名，“1.0.0”为镜像TAG。 注意此处需要pip拉取依赖，如果需要使用pip代理，可使用以下命令指定代理服务器。
 
         ```
         docker build --build-arg PIP_PROXY=http://username:password@http.example.com:8080 -t waasbooster:1.0.0 . 
