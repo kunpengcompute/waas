@@ -74,7 +74,6 @@ WAAS Booster支持的命令行如下所示。
         kubectl logs waasbooster-daemon-rhwdz
         ```
 
-用户通过kubectl进行WAAS Booster Pod的创建与销毁。Pod创建后自动启动WAAS Booster服务，Pod销毁后自动关闭WAAS Booster服务。
 
 
 ## 安全管理<a name="ZH-CN_TOPIC_0000002518228414"></a>

@@ -36,38 +36,38 @@
 
     1. 进入waas文件夹。
 
-    ```
-    cd waas-waasbooster 
-    ```
+        ```
+        cd waas-waasbooster 
+        ```
 
-    1. 构建编译镜像。
+    2. 构建编译镜像。
 
-    ```
-    docker build -t waasbooster:1.0.0 . 
-    ```
+        ```
+        docker build -t waasbooster:1.0.0 . 
+        ```
 
-    命令中的"waasbooster"为构建后的镜像名，"1.0.0"为镜像TAG。 注意此处需要pip拉取依赖，如果需要使用pip代理，可使用以下命令指定代理服务器。
+        命令中的"waasbooster"为构建后的镜像名，"1.0.0"为镜像TAG。 注意此处需要pip拉取依赖，如果需要使用pip代理，可使用以下命令指定代理服务器。
 
-    ```
-    docker build --build-arg PIP_PROXY=http://username:password@http.example.com:8080 -t waasbooster:1.0.0 . 
-    ```
+        ```
+        docker build --build-arg PIP_PROXY=http://username:password@http.example.com:8080 -t waasbooster:1.0.0 . 
+        ```
 
-    若有特定pip镜像源，也可以指定PIP镜像源。
+        若有特定pip镜像源，也可以指定pip镜像源。
 
-    ```
-    docker build \     
-    --build-arg PIP_MIRROR=http://mirror.example.com/pypi/simple \     
-    --build-arg PIP_TRUST_HOST=http://mirror.example.com \     
-    -t waasbooster:1.0.0 .
-    ```
+        ```
+        docker build \     
+        --build-arg PIP_MIRROR=http://mirror.example.com/pypi/simple \     
+        --build-arg PIP_TRUST_HOST=http://mirror.example.com \     
+        -t waasbooster:1.0.0 .
+        ```
 
-    1. 查看镜像列表。
+    3. 查看镜像列表。
 
-    ```
-    docker images 
-    ```
+        ```
+        docker images 
+        ```
 
-    回显中若有名为waasbooster，TAG为1.0.0的镜像出现，则构建成功。
+        回显中若有名为waasbooster，TAG为1.0.0的镜像出现，则构建成功。
 
 
 ## 工具使用<a name="ZH-CN_TOPIC_0000002550183111"></a>

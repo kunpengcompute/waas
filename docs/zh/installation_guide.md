@@ -43,7 +43,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >WAAS Booster仅支持部署于业务节点。
 
-本文基于openEuler操作系统提供指导，在正式操作前请确保软硬件均满足要求。
 ## RPM部署WAAS Booster<a name="ZH-CN_TOPIC_0000002518224408"></a>
 
 ### 安装运行环境<a name="ZH-CN_TOPIC_0000002518384324"></a>
@@ -55,7 +54,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 1. 安装软件运行必要依赖。
 
-    ```
+    ```bash
     yum install -y python rpm-build cpio
     ```
 
@@ -79,7 +78,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
         export PATH=$PATH:/root/miniconda3/bin/
         ```
 
-    3. 按“Esc“键退出编辑模式，输入**:wq!**，按“Enter“键保存退出文件。
+    3. 按“Esc“键退出编辑模式，输入 **:wq!**，按“Enter“键保存退出文件。
     4. 使文件生效。
 
         ```
@@ -142,7 +141,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     pip3 install -r waas-waasbooster/requirements.txt
     ```
 
-为后续部署WAAS Booster提供必要的依赖和环境，需要安装其所需的依赖包。
 ### 制作WAAS Booster RPM包<a name="ZH-CN_TOPIC_0000002549744183"></a>
 
 制作WAAS Booster RPM包。
@@ -155,7 +153,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 2. 编译结束后，进入“waas-waasbooster/output“确认RPM包是否构建成功。若存在waasbooster-1.0.0.aarch64.rpm的文件则表示RPM包构建成功。
 
-制作WAAS Booster RPM包。
 ### 部署WAAS Booster<a name="ZH-CN_TOPIC_0000002549864177"></a>
 
 部署WAAS Booster，包括安装WAAS Booster的安装包和设置环境变量。
@@ -204,7 +201,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
         即将“/usr/local/waasbooster/bin/python3“中的“/usr/local/waasbooster“修改为**conda env list**中waasbooster\_env对应的回显路径。
 
-    4. 按“Esc“键退出编辑模式，输入**:wq!**，按“Enter“键保存退出文件。
+    4. 按“Esc“键退出编辑模式，输入 **:wq!**，按“Enter“键保存退出文件。
 
 3. 重新加载systemctl的daemon。
 
@@ -212,7 +209,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     systemctl daemon-reload
     ```
 
-部署WAAS Booster，包括安装WAAS Booster的安装包和设置环境变量。
 ### 运行WAAS Booster<a name="ZH-CN_TOPIC_0000002549744189"></a>
 
 安装WAAS Booster完成后，需要先启动WAAS Booster，才能使用WAAS Booster服务的功能。
@@ -261,7 +257,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     ![](figures/zh-cn_image_0000002549744195.png)
 
-安装WAAS Booster完成后，需要先启动WAAS Booster，才能使用WAAS Booster服务的功能。
 ### （可选）卸载WAAS Booster<a name="ZH-CN_TOPIC_0000002518224414"></a>
 
 当不再需要使用WAAS Booster时，可以卸载WAAS Booster。
@@ -283,7 +278,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     rpm -e waasbooster
     ```
 
-当不再需要使用WAAS Booster时，可以卸载WAAS Booster。
 ### （可选）制作独立WAAS Booster RPM<a name="ZH-CN_TOPIC_0000002518224412"></a>
 
 由于某些部署环境不支持网络连接操作，无法安装WAAS Booster所需依赖，因此本节给出不依赖环境的独立RPM包制作过程。
@@ -318,7 +312,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
         export PATH=$PATH:/root/miniconda3/bin/
         ```
 
-    3. 按“Esc“键退出编辑模式，输入**:wq!**，按“Enter“键保存退出文件。
+    3. 按“Esc“键退出编辑模式，输入 **:wq!**，按“Enter“键保存退出文件。
     4. 使文件生效。
 
         ```
@@ -425,7 +419,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
         ExecStart=/usr/local/waasbooster/waasbooster_env/bin/python3 /usr/local/waasbooster/waas_booster.py
         ```
 
-    3. 按“Esc“键退出编辑模式，输入**:wq!**，按“Enter“键保存退出文件。
+    3. 按“Esc“键退出编辑模式，输入 **:wq!**，按“Enter“键保存退出文件。
 
 16. 新增文件，保存指定内容。
 
@@ -434,7 +428,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     1. 新增文件build.sh，添加如下内容。
 
-        ```
+        ``` bash
         #!/bin/bash
         # ******************************************************************************** #
         # Copyright Huawei Technologies Co., Ltd. 2023-2024. All rights reserved.
@@ -482,7 +476,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     2. 新增文件waas\_booster.spec，添加如下内容。
 
-        ```
+        ``` bash
         %define projectdir /usr/local/waasbooster
         
         Name:     waasbooster
@@ -573,7 +567,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >-   无需安装WAAS Booster运行环境即可部署运行此安装包。
-    >-   安装此RPM包时请添加**--nodeps**命令，否则将无法安装运行。
+    >-   安装此RPM包时请添加 **--nodeps**命令，否则将无法安装运行。
 
     ```
     rpm -ivh --nodeps /home/waasbooster_rpm_build/output/waasbooster-1.0.0-1.aarch64.rpm
@@ -585,7 +579,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     rpm -e --nodeps waasbooster
     ```
 
-由于某些部署环境不支持网络连接操作，无法安装WAAS Booster所需依赖，因此本节给出不依赖环境的独立RPM包制作过程。
 
 
 ## K8s Pod部署WAAS Booster<a name="ZH-CN_TOPIC_0000002549744187"></a>
@@ -712,7 +705,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >Pod创建后，WAAS Booster服务自动启动。
 
-部署前需要确保部署节点上存在构建好的WAAS Booster镜像，或者能够拉取到WAAS Booster镜像。
 ### （可选）销毁Pod<a name="ZH-CN_TOPIC_0000002518224404"></a>
 
 当需要把整个集群中的WAAS Booster服务停掉时，需要销毁Pod。Pod销毁后，WAAS Booster服务自动停止，所有业务Pod的Quota恢复初始设置。
@@ -737,6 +729,5 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     ![](figures/zh-cn_image_0000002549744193.png)
 
-当需要把整个集群中的WAAS Booster服务停掉时，需要销毁Pod。Pod销毁后，WAAS Booster服务自动停止，所有业务Pod的Quota恢复初始设置。
 
 
