@@ -110,7 +110,7 @@ WAAS Booster支持的命令行如下所示。
 >请不要误删除WAAS Booster产生的所有日志文件。
 
 - 运行日志输出到操作系统日志文件中。
-- WAAS Booster的日志输出文件为“/var/log/waasbooster.log“。
+- WAAS Booster的日志输出文件为“/var/log/waasbooster.log”。
 
 
 
