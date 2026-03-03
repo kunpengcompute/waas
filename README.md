@@ -128,3 +128,4 @@ WAAS Booster的用户指南，包括详细的工具使用教程等，具体请�
 
 WAAS Booster采用Apache License 2.0许可证，具体开源协议请参见[LICENSE](https://gitcode.com/BoostKit/waas/blob/waasbooster/LICENSE)。
 
+本项目的文档适用于CC-BY 4.0许可证，具体请参见[LICENSE](docs/zh/LICENSE)。
