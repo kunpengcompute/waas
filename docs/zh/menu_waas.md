@@ -1,5 +1,5 @@
 - [项目介绍](../../README.md)
 - [版本说明书](release_notes.md)
 - [安装指南](installation_guide.md)
-- [安装指南](quick_start.md)
+- [快速入门](quick_start.md)
 - [用户指南](user_guide.md)
