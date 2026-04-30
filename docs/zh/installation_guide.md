@@ -4,12 +4,12 @@
 
 WAAS Booster是一个专为容器化环境设计的负载动态调度工具，根据不同的部署环境，WAAS Booster提供了两种主要的部署方式：RPM部署和K8s Pod部署。下面将详细介绍这两种部署方式的区别及其适用场景。
 
-1. RPM部署
+- RPM部署
     1. 业务节点数量较少：适用于业务节点数量较少的环境，例如小型企业或初创公司，这些环境中通常不需要复杂的资源管理和调度。
     2. 未使用Kubernetes搭建集群：适用于尚未采用Kubernetes进行容器化管理的环境，这些环境可能使用传统的虚拟机或物理机部署应用。
     3. 不需要频繁人工维护调试：适用于对运维自动化要求不高，且不需要频繁进行人工维护和调试的场景。RPM物理机部署可以减少对自动化运维工具的依赖，简化运维流程。
 
-2. K8s Pod部署
+- K8s Pod部署
     1. 业务节点数量较多：适用于业务节点数量较多的环境，例如大型企业或互联网公司，这些环境中通常需要高效的资源管理和调度能力。
     2. 业务基于Kubernetes搭建集群：适用于已经使用Kubernetes进行容器化管理的环境，这些环境可以充分利用Kubernetes的自动化部署、扩展和管理功能。
     3. 需要高度自动化运维：适用于对运维自动化要求较高的场景，K8s Pod部署可以在Master节点实现WAAS Booster服务Pod的集中创建、管理和销毁，提高系统的可靠性和可用性。
@@ -31,8 +31,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 |项目|版本|获取方式|
 |--|--|--|
-|OS|openEuler 20.03 LTS SP3|[获取链接](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2020.03%20LTS%20SP3)|
-|OS|openEuler 22.03 LTS SP4|[获取链接](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2022.03%20LTS%20SP4)|
+|OS|openEuler 20.03 LTS SP3<br>openEuler 22.03 LTS SP4|openEuler 20.03 LTS SP3：[获取链接](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2020.03%20LTS%20SP3)<br>openEuler 22.03 LTS SP4：[获取链接](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2022.03%20LTS%20SP4)|
 |Python|3.9.9或以上版本|[获取链接](https://www.python.org/downloads/release/python-399/)|
 |Miniconda3|py310_25.1.1-2-Linux-aarch64|[获取链接](https://repo.anaconda.com/miniconda/Miniconda3-py310_25.1.1-2-Lniux-aarch64.sh)|
 |WAAS Booster所需依赖包|安装手册中的指定版本|通过配置Yum源和pip源方式安装|

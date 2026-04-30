@@ -54,7 +54,7 @@ WAAS Booster支持的命令行如下所示。
 
     假设目标Pod名为waasbooster-daemon-rhwdz。
 
-    1. 若持续监控，可以进入容器查看日志。
+    - 若持续监控，可以进入容器查看日志。
         1. 进入容器。
 
             ```
@@ -67,7 +67,7 @@ WAAS Booster支持的命令行如下所示。
             tail -f /var/log/waasbooster.log
             ```
 
-    2. 若临时查看，则可以通过K8s日志查看。
+    - 若临时查看，则可以通过K8s日志查看。
 
         ```
         kubectl logs waasbooster-daemon-rhwdz
