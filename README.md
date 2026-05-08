@@ -34,7 +34,7 @@ WAAS Booster项目全量目录层级介绍如下：
 ├─ Dockerfile                                   # 容器镜像构建文件（定义运行环境、依赖与启动方式）
 ├─ LICENSE                                      # 开源许可证文本
 ├─ README.md                                    # 中文/主 README
-├─ README.en.md                                 # 英文 README
+├─ README_en.md                                 # 英文 README
 ├─ requirements.txt                             # Python 依赖清单（pip 安装用）
 ├─ waas_booster.spec                            # 打包脚本所依赖的规格文件
 ├─ deployment/                                  # 部署相关资源的目录（面向集群/平台的部署清单）
