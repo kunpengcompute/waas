@@ -183,15 +183,15 @@
 
 |文档名称|内容简介|交付形式|
 |--|--|--|
-|《Kunpeng BoostKit 25.3.0 WAAS容器场景负载动态调度工具 版本说明书》|本文档提供WAAS容器场景负载动态调度工具的版本发布及其配套信息。|鲲鹏社区|
-|《Kunpeng BoostKit 25.3.0 WAAS容器场景负载动态调度工具 用户指南》|本文档提供WAAS容器场景负载动态调度工具的部署使能及使用指导。|鲲鹏社区|
-|《Kunpeng BoostKit 25.3.0 WAAS容器场景负载动态调度工具 账户清单》|本文档提供WAAS容器场景负载动态调度工具中涉及的账户信息列表。|鲲鹏社区|
+|《Kunpeng BoostKit 25.3.0 WAAS容器场景负载动态调度工具 版本说明书》|本文档提供WAAS容器场景负载动态调度工具的版本发布及其配套信息。|开源仓|
+|《Kunpeng BoostKit 25.3.0 WAAS容器场景负载动态调度工具 用户指南》|本文档提供WAAS容器场景负载动态调度工具的部署使能及使用指导。|开源仓|
+|《Kunpeng BoostKit 25.3.0 WAAS容器场景负载动态调度工具 账户清单》|本文档提供WAAS容器场景负载动态调度工具中涉及的账户信息列表。|开源仓|
 
 
 
 ### 获取文档的方法<a name="ZH-CN_TOPIC_0000002518224494"></a>
 
-您可以通过访问[鲲鹏社区](https://www.hikunpeng.com/document/detail/zh/kunpengcpfs/overview/kunpengcpfs.html)浏览和获取相关文档。
+您可以通过访问[开源仓](https://gitcode.com/boostkit/waas)浏览和获取相关文档。
 
 
 
