@@ -1,4 +1,4 @@
-# WAAS Introduction<a name="EN-US_TOPIC_0000002518588852"></a>
+# WAAS Introduction
 
 
 
