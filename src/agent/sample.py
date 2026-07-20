@@ -157,7 +157,8 @@ class PerfCount:
             kperf.EvtAttr(evt['group'], 0, evt['excludeUser'], evt['excludeKernel']) for evt in self.events
         ]
 
-        pmu_attr = kperf.PmuAttr(evtList=evt_list, cpuList=self.cpu_list, evtAttr=evt_attr_list)
+        cgroupPath = ["the_cgroup_path"]
+        pmu_attr = kperf.PmuAttr(evtList=evt_list, cgroupNameList=cgroupPath, evtAttr=evt_attr_list)
 
         pd = kperf.open(kperf.PmuTaskType.COUNTING, pmu_attr)
         if pd == -1:
