@@ -70,6 +70,13 @@ Controller 使用以下 Agent 地址：
 
 `POST /v1/online-pods` 将请求中的 Pod cgroup 列表作为最新完整采集目标；空 Pod 列表会暂停 PMU 采集。第一阶段尚未实现干扰原因分析，因此 `GET /v1/interference` 固定返回 `unknown`。
 
+### 线程模型
+
+- Agent 主线程运行原有的 PMU 采集、数据处理和 IPMI/BMC 循环。
+- FastAPI/Uvicorn 运行在独立的 HTTP 辅助线程中。
+- `PodSnapshotStore` 在线程之间传递 Controller 下发的 Pod cgroup 完整快照。
+- HTTP 服务启动失败或运行中意外退出时，Agent 主采集循环会停止，整个进程退出。
+
 # 贡献指南
 如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
 
