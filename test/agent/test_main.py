@@ -53,6 +53,9 @@ def test_run_agent_runs_sampling_on_caller_thread_and_cleans_up(monkeypatch):
         def start(self):
             calls.append(("http-start", current_thread()))
 
+        def raise_if_failed(self):
+            calls.append(("http-check", current_thread()))
+
         def stop(self):
             calls.append(("http-stop", current_thread()))
 
@@ -68,6 +71,7 @@ def test_run_agent_runs_sampling_on_caller_thread_and_cleans_up(monkeypatch):
     assert calls == [
         ("http-start", caller_thread),
         ("worker", caller_thread),
+        ("http-check", caller_thread),
         ("store-close", caller_thread),
         ("http-stop", caller_thread),
     ]
@@ -98,3 +102,28 @@ def test_run_agent_does_not_start_sampling_when_http_start_fails(monkeypatch):
         main._run_agent(FakeWorker(), FakeHttpRunner(), FakeStore(), Event())
 
     assert not worker_called
+
+
+def test_run_agent_propagates_http_runtime_failure(monkeypatch):
+    main = load_main(monkeypatch)
+
+    class FakeWorker:
+        def run(self):
+            pass
+
+    class FakeHttpRunner:
+        def start(self):
+            pass
+
+        def raise_if_failed(self):
+            raise RuntimeError("HTTP server stopped unexpectedly")
+
+        def stop(self):
+            pass
+
+    class FakeStore:
+        def close(self):
+            pass
+
+    with pytest.raises(RuntimeError, match="HTTP server stopped unexpectedly"):
+        main._run_agent(FakeWorker(), FakeHttpRunner(), FakeStore(), Event())

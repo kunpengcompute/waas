@@ -72,6 +72,7 @@ def _run_agent(worker, http_runner, store, stop_event):
     try:
         http_runner.start()
         worker.run()
+        http_runner.raise_if_failed()
     finally:
         stop_event.set()
         store.close()

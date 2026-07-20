@@ -15,12 +15,14 @@ class HttpServerRunner:
         store,
         stop_event: Event,
         startup_timeout: float = 5.0,
+        shutdown_timeout: float = 5.0,
         poll_interval: float = 0.01,
     ):
         self.server = server
         self.store = store
         self.stop_event = stop_event
         self.startup_timeout = startup_timeout
+        self.shutdown_timeout = shutdown_timeout
         self.poll_interval = poll_interval
         self._finished = Event()
         self._state_lock = Lock()
@@ -29,6 +31,7 @@ class HttpServerRunner:
         self._thread = Thread(
             target=self._run,
             name="waas-http-server",
+            daemon=True,
         )
 
     def _run(self) -> None:
@@ -62,7 +65,15 @@ class HttpServerRunner:
             self._shutdown_requested = True
         self.server.should_exit = True
         if self._thread.ident is not None:
-            self._thread.join()
+            self._thread.join(timeout=self.shutdown_timeout)
+
+    def raise_if_failed(self) -> None:
+        with self._state_lock:
+            shutdown_requested = self._shutdown_requested
+        if self._finished.is_set() and not shutdown_requested:
+            raise RuntimeError(
+                "HTTP server stopped unexpectedly"
+            ) from self._failure
 
     def is_alive(self) -> bool:
         return self._thread.is_alive()
