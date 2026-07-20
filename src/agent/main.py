@@ -5,10 +5,14 @@ Description: waas agent main
 """
 
 import argparse
-import psutil
 import logging
+import threading
+
+import uvicorn
 
 import util
+from agent_http.server import create_app
+from agent_http.store import PodSnapshotStore
 from sample import PerfCount
 from data_process import DataProcessor
 from layers.numa_reduction import NumaReduction
@@ -17,6 +21,7 @@ from handlers.soc_handler import SocHandler
 from messengers.ipmi_messenger import IpmiMessenger as Messenger
 from handler import Handler
 from data_recorder import DataRecorder
+from sampling_worker import SamplingWorker
 
 logging.basicConfig(
     level=logging.INFO,
@@ -29,8 +34,6 @@ MIN_INTERVAL=0.01
 
 def _get_args():
     parser = argparse.ArgumentParser(description="waasagent")
-    parser.add_argument("-c", "--cpus", metavar="CPU", type=str,
-        default="", help="List of CPU IDs to sample, default all")
     parser.add_argument("-i", "--interval", metavar="INTERVAL", type=float,
         default=1, help="Sample Interval in second, default 1s")
     parser.add_argument("-o", "--output", metavar="OUTPUT", type=str,
@@ -38,36 +41,15 @@ def _get_args():
     parser.add_argument("-m", "--maxrows", metavar="MAXROWS", type=int,
                         default=100000, help="Max rows in one output file, default 10000, \
 if there is more data, it will be saved in another file(s).")
+    parser.add_argument(
+        "--http-host", default="127.0.0.1",
+        help="HTTP listen host, default 127.0.0.1",
+    )
+    parser.add_argument(
+        "--http-port", type=int, default=18080,
+        help="HTTP listen port, default 18080",
+    )
     return parser.parse_args()
-
-
-def _get_cpus(cpus):
-    logical_cores = psutil.cpu_count(logical=True)
-    cpu_list = []
-    if not cpus:
-        return cpu_list
-
-    try:
-        if '-' in cpus:
-            l = cpus.split('-')
-            start, end = int(l[0]), int(l[1])
-            if start >= 0 and end < logical_cores:
-                cpu_list = list(range(start, end + 1))
-            else:
-                raise ValueError("cpu core out of range")
-        else:
-            l = cpus.split()
-            for c in l:
-                core = int(c)
-                if core >= 0 and core < logical_cores:
-                    cpu_list.append(core)
-                else:
-                    raise ValueError("cpu core out of range")
-    except Exception as e:
-        logging.error("Parse cpu list error: %s \n Using all cpus" % str(e), exc_info=True)
-        cpu_list = []
-
-    return cpu_list
 
 
 def _get_interval(interval):
@@ -81,40 +63,59 @@ def _get_interval(interval):
         return interval
 
 
+def _create_counter(cgroup_paths):
+    return PerfCount(cgroup_paths=cgroup_paths)
+
+
 def main():
     args = _get_args()
+    interval = _get_interval(args.interval)
 
-    cpu_list = _get_cpus(args.cpus)
-    _counter = PerfCount(cpu_list=cpu_list)
-    _processor = DataProcessor()
+    processor = DataProcessor()
 
     # 按numa聚合特征
-    _numa_reduction = NumaReduction()
-    _processor.add_porcesser("numa_reduction", [_numa_reduction])
+    processor.add_porcesser("numa_reduction", [NumaReduction()])
 
-    _messenger = Messenger()
+    messenger = Messenger()
 
-    _handler = Handler()
-    _core_handler = CoreHandler()
-    _soc_handler = SocHandler()
-    _handler.add_handler(util.Weapon.CORE.value, _core_handler)
-    _handler.add_handler(util.Weapon.SOC.value, _soc_handler)
+    handler = Handler()
+    handler.add_handler(util.Weapon.CORE.value, CoreHandler())
+    handler.add_handler(util.Weapon.SOC.value, SocHandler())
 
     recorder = None
-    if args.output != "":
+    if args.output:
         recorder = DataRecorder(args.output, args.maxrows)
 
-    while True:
-        _counter.count(_get_interval(args.interval))
-        data = _counter.get_data()
-        if recorder:
-            recorder.insert(data)
-        payload = _processor.process(data)
-        _messenger.send_data(payload)
-        advice = _messenger.get_advice()
+    store = PodSnapshotStore()
+    stop_event = threading.Event()
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop_event,
+        counter_factory=_create_counter,
+        interval=interval,
+        processor=processor,
+        messenger=messenger,
+        handler=handler,
+        recorder=recorder,
+    )
+    worker_thread = threading.Thread(
+        target=worker.run,
+        name="waas-sampling-worker",
+    )
+    worker_thread.start()
 
-        if advice:
-            _handler.apply(advice)
+    try:
+        config = uvicorn.Config(
+            create_app(store),
+            host=args.http_host,
+            port=args.http_port,
+            log_level="info",
+        )
+        uvicorn.Server(config).run()
+    finally:
+        stop_event.set()
+        store.close()
+        worker_thread.join()
 
 
 if __name__ == "__main__":
