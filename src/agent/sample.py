@@ -106,12 +106,8 @@ EVENT_NAME_MAP = {
 
 
 class PerfCount:
-    def __init__(self, cpu_list=None):
-        if cpu_list:
-            self.cpu_list = cpu_list
-        else:
-            self.cpu_list = []
-
+    def __init__(self, cgroup_paths=None):
+        self.cgroup_paths = list(cgroup_paths or [])
         self.events = []
 
         self.data = {}
@@ -157,14 +153,21 @@ class PerfCount:
             kperf.EvtAttr(evt['group'], 0, evt['excludeUser'], evt['excludeKernel']) for evt in self.events
         ]
 
-        cgroupPath = ["the_cgroup_path"]
-        pmu_attr = kperf.PmuAttr(evtList=evt_list, cgroupNameList=cgroupPath, evtAttr=evt_attr_list)
+        pmu_attr = kperf.PmuAttr(
+            evtList=evt_list,
+            cgroupNameList=self.cgroup_paths,
+            evtAttr=evt_attr_list,
+        )
 
         pd = kperf.open(kperf.PmuTaskType.COUNTING, pmu_attr)
         if pd == -1:
-            print(kperf.error())
             raise ValueError(kperf.error())
         return pd
+
+    def close(self):
+        if self.pd:
+            kperf.close(self.pd)
+            self.pd = 0
 
     def count(self, count_time):
         kperf.enable(self.pd)
