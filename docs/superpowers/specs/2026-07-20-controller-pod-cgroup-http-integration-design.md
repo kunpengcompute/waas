@@ -49,8 +49,8 @@ The Agent adds `--http-host` and `--http-port` command-line options. The default
 
 The Agent remains one process with two execution contexts:
 
-1. The main thread runs Uvicorn and handles HTTP lifecycle and operating-system signals.
-2. One sampling worker thread owns all `kperf`/`PerfCount` operations and runs the existing sampling-to-BMC loop.
+1. The main thread owns all `kperf`/`PerfCount` operations and runs the existing sampling-to-BMC loop.
+2. One auxiliary HTTP thread runs FastAPI/Uvicorn and only receives Controller data.
 
 The two contexts communicate only through a thread-safe `PodSnapshotStore` and a process-wide stop event.
 
@@ -59,7 +59,7 @@ kunpeng-qos-controller
         |
         | POST /v1/online-pods
         v
-FastAPI / Uvicorn (main thread)
+FastAPI / Uvicorn (auxiliary HTTP thread)
         |
         | atomic snapshot replacement
         v
@@ -67,7 +67,7 @@ PodSnapshotStore
         |
         | target_revision + cgroup_paths
         v
-Sampling worker (sole PerfCount owner)
+Sampling loop (main thread, sole PerfCount owner)
         |
         v
 kperf -> DataProcessor -> IPMI/BMC -> advice -> Handler
@@ -123,22 +123,29 @@ It implements:
 
 The application receives the store explicitly rather than using module-level mutable dictionaries. This keeps tests isolated and makes ownership clear.
 
-### 5.4 `sampling_worker`
+### 5.4 `HttpServerRunner`
+
+Owns the auxiliary HTTP thread and the Uvicorn server lifecycle. It starts the server, waits until the listening socket is ready, reports startup failure to the caller, requests graceful shutdown, and joins the thread.
+
+If Uvicorn cannot start, or if its thread exits unexpectedly while the Agent is running, the runner sets the process stop event and closes the snapshot store. This wakes the main sampling loop so the whole Agent exits instead of remaining alive without a source of Pod cgroup data.
+
+### 5.5 `sampling_worker`
 
 Contains the sampling-loop orchestration extracted from `main.py`. It receives dependencies explicitly, including a counter factory, so tests can substitute a fake counter.
 
 The production counter factory creates `PerfCount` with the current snapshot's cgroup path list. Downstream processing remains the existing recorder, `DataProcessor`, Messenger, advice decoder, and Handler pipeline.
 
-### 5.5 `main`
+### 5.6 `main`
 
 `main.py` becomes composition and lifecycle code:
 
 1. Parse CLI arguments.
 2. Create the snapshot store and stop event.
 3. Construct existing processor, messenger, handlers, and optional recorder dependencies.
-4. Start the sampling worker.
-5. Run Uvicorn in the main thread.
-6. On server exit, signal shutdown, wake the worker, release sampling resources, and join the worker.
+4. Construct and start `HttpServerRunner` in an auxiliary thread.
+5. Wait for the HTTP server to confirm successful startup; abort the Agent if startup fails.
+6. Run the existing sampling worker directly in the main thread.
+7. On exit, signal shutdown, wake the sampling loop, stop Uvicorn, and join the HTTP thread.
 
 ## 6. HTTP Contract
 
@@ -230,6 +237,8 @@ The worker captures `target_revision` at the start of sampling. Before forwardin
 - Counter creation failure is logged and retried after a bounded delay while the same snapshot remains active.
 - Sampling failure is logged, the counter is released, and the worker retries with the current snapshot.
 - IPMI/BMC or advice-processing failures are logged without terminating the HTTP server.
+- HTTP startup failure terminates the Agent before the sampling loop starts.
+- Unexpected HTTP-thread exit terminates the main sampling loop and therefore the Agent.
 - An empty target list is a normal idle state, not an error.
 - Shutdown signals interrupt snapshot waits through the condition variable.
 - The worker closes the current counter and optional recorder on exit.
@@ -245,8 +254,10 @@ src/agent/agent_http/__init__.py
 src/agent/agent_http/models.py
 src/agent/agent_http/store.py
 src/agent/agent_http/server.py
+src/agent/http_server_runner.py
 src/agent/sampling_worker.py
 test/agent/test_http_server.py
+test/agent/test_http_server_runner.py
 test/agent/test_pod_store.py
 test/agent/test_sampling_worker.py
 requirements.txt
@@ -292,6 +303,8 @@ Sampling worker tests inject fake counters and cover:
 - Counter creation and sampling retry behavior.
 - Clean worker shutdown.
 
+HTTP runner tests cover successful startup, startup failure, graceful shutdown, and unexpected server-thread exit without requiring a real listening socket.
+
 Unit tests must not import or require the real `kperf` module. A Kunpeng integration test separately verifies that the `cgroupNameList` passed to `kperf.PmuAttr` exactly matches the latest accepted Controller snapshot.
 
 ## 11. Acceptance Criteria
@@ -303,6 +316,8 @@ Unit tests must not import or require the real `kperf` module. A Kunpeng integra
 - Repeated equivalent snapshots do not recreate the counter.
 - Changed and empty snapshots take effect without restarting the Agent.
 - HTTP remains responsive while sampling or IPMI/BMC work is running.
+- The sampling-to-BMC loop remains on the main thread; HTTP is an auxiliary thread.
+- HTTP startup failure or unexpected HTTP-thread exit causes the Agent to exit.
 - GET interference remains protocol-compatible and safely returns `unknown`.
 - The process releases worker and counter resources during shutdown.
 - Focused tests pass without Kunpeng hardware or a real `kperf` installation.
