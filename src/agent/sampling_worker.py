@@ -31,7 +31,10 @@ class SamplingWorker:
     @staticmethod
     def _close_counter(counter) -> None:
         if counter is not None:
-            counter.close()
+            try:
+                counter.close()
+            except Exception:
+                logging.exception("close PerfCount failed")
 
     def run(self) -> None:
         counter = None
@@ -76,6 +79,9 @@ class SamplingWorker:
                     self.stop_event.wait(self.retry_interval)
                     continue
 
+                if self.stop_event.is_set():
+                    return
+
                 if self.store.current_revision() != active_revision:
                     continue
 
@@ -83,9 +89,13 @@ class SamplingWorker:
                     if self.recorder is not None:
                         self.recorder.insert(data)
                     payload = self.processor.process(data)
+                    if self.stop_event.is_set():
+                        return
                     self.messenger.send_data(payload)
+                    if self.stop_event.is_set():
+                        return
                     advice = self.messenger.get_advice()
-                    if advice:
+                    if advice and not self.stop_event.is_set():
                         self.handler.apply(advice)
                 except Exception:
                     logging.exception("sampling downstream pipeline failed")

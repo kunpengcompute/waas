@@ -231,3 +231,62 @@ def test_sample_from_replaced_snapshot_is_not_forwarded():
         payload["sampled_paths"] != ("path-a",)
         for payload in messenger.sent
     )
+
+
+def test_counter_close_failure_does_not_stop_target_switch():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=(pod(),)))
+
+    class CloseFailingCounter(FakeCounter):
+        def close(self):
+            self.closed = True
+            raise RuntimeError("close failed")
+
+    def factory(paths):
+        if not created:
+            return CloseFailingCounter(paths, created, sampled)
+        return FakeCounter(paths, created, sampled)
+
+    worker = SamplingWorker(
+        store, stop, factory, 0, FakeProcessor(), FakeMessenger(), FakeHandler(),
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: bool(sampled))
+
+    store.replace(request(pods=(pod(path="path-b"),), second=1))
+    wait_until(lambda: len(created) == 2 and created[1].paths == ("path-b",))
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert not thread.is_alive()
+    assert created[0].closed
+
+
+def test_shutdown_during_sample_skips_downstream_pipeline():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=(pod(),)))
+    messenger = FakeMessenger()
+
+    class StoppingCounter(FakeCounter):
+        def count(self, interval):
+            super().count(interval)
+            stop.set()
+
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: StoppingCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=messenger,
+        handler=FakeHandler(),
+        retry_interval=0.01,
+    )
+
+    worker.run()
+
+    assert messenger.sent == []
+    assert created[0].closed
