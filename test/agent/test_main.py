@@ -1,6 +1,9 @@
 import importlib
 import sys
+from threading import Event, current_thread
 from types import ModuleType
+
+import pytest
 
 
 def load_main(monkeypatch):
@@ -36,3 +39,62 @@ def test_counter_factory_passes_snapshot_paths(monkeypatch):
     main._create_counter(("path-a", "path-b"))
 
     assert captured == [("path-a", "path-b")]
+
+
+def test_run_agent_runs_sampling_on_caller_thread_and_cleans_up(monkeypatch):
+    main = load_main(monkeypatch)
+    calls = []
+
+    class FakeWorker:
+        def run(self):
+            calls.append(("worker", current_thread()))
+
+    class FakeHttpRunner:
+        def start(self):
+            calls.append(("http-start", current_thread()))
+
+        def stop(self):
+            calls.append(("http-stop", current_thread()))
+
+    class FakeStore:
+        def close(self):
+            calls.append(("store-close", current_thread()))
+
+    stop_event = Event()
+    caller_thread = current_thread()
+
+    main._run_agent(FakeWorker(), FakeHttpRunner(), FakeStore(), stop_event)
+
+    assert calls == [
+        ("http-start", caller_thread),
+        ("worker", caller_thread),
+        ("store-close", caller_thread),
+        ("http-stop", caller_thread),
+    ]
+    assert stop_event.is_set()
+
+
+def test_run_agent_does_not_start_sampling_when_http_start_fails(monkeypatch):
+    main = load_main(monkeypatch)
+    worker_called = False
+
+    class FakeWorker:
+        def run(self):
+            nonlocal worker_called
+            worker_called = True
+
+    class FakeHttpRunner:
+        def start(self):
+            raise RuntimeError("HTTP failed")
+
+        def stop(self):
+            pass
+
+    class FakeStore:
+        def close(self):
+            pass
+
+    with pytest.raises(RuntimeError, match="HTTP failed"):
+        main._run_agent(FakeWorker(), FakeHttpRunner(), FakeStore(), Event())
+
+    assert not worker_called

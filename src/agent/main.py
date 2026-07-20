@@ -21,6 +21,7 @@ from handlers.soc_handler import SocHandler
 from messengers.ipmi_messenger import IpmiMessenger as Messenger
 from handler import Handler
 from data_recorder import DataRecorder
+from http_server_runner import HttpServerRunner
 from sampling_worker import SamplingWorker
 
 logging.basicConfig(
@@ -67,6 +68,16 @@ def _create_counter(cgroup_paths):
     return PerfCount(cgroup_paths=cgroup_paths)
 
 
+def _run_agent(worker, http_runner, store, stop_event):
+    try:
+        http_runner.start()
+        worker.run()
+    finally:
+        stop_event.set()
+        store.close()
+        http_runner.stop()
+
+
 def main():
     args = _get_args()
     interval = _get_interval(args.interval)
@@ -98,24 +109,18 @@ def main():
         handler=handler,
         recorder=recorder,
     )
-    worker_thread = threading.Thread(
-        target=worker.run,
-        name="waas-sampling-worker",
+    config = uvicorn.Config(
+        create_app(store),
+        host=args.http_host,
+        port=args.http_port,
+        log_level="info",
     )
-    worker_thread.start()
-
-    try:
-        config = uvicorn.Config(
-            create_app(store),
-            host=args.http_host,
-            port=args.http_port,
-            log_level="info",
-        )
-        uvicorn.Server(config).run()
-    finally:
-        stop_event.set()
-        store.close()
-        worker_thread.join()
+    http_runner = HttpServerRunner(
+        server=uvicorn.Server(config),
+        store=store,
+        stop_event=stop_event,
+    )
+    _run_agent(worker, http_runner, store, stop_event)
 
 
 if __name__ == "__main__":
