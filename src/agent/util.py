@@ -8,6 +8,15 @@ from weapon.core_group import CoreGroup, CoreRegItem
 
 # 全局宏定义变量
 PLACEHOLDER_0 = 0x00
+LABEL_MAP = {
+    "base": 0,
+    "compute": 1,
+    "l2": 2,
+    "l3": 3,
+    "membw": 4,
+    "tlb": 5,
+    "frontend": 6,
+}
 
 class Weapon(Enum):
     SOC = "SOC"
