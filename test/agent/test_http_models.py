@@ -7,6 +7,7 @@ from agent_http.models import (
     InterferenceReason,
     InterferenceResponse,
     OnlinePodsRequest,
+    controller_reason_from_code,
 )
 
 
@@ -60,3 +61,21 @@ def test_unknown_interference_response_has_controller_shape():
         "ttl_seconds": 0,
         "items": [],
     }
+
+
+@pytest.mark.parametrize(
+    ("reason_code", "expected"),
+    [
+        (0, InterferenceReason.UNKNOWN),
+        (1, InterferenceReason.CPU),
+        (2, InterferenceReason.CPU),
+        (3, InterferenceReason.L3),
+        (4, InterferenceReason.MB),
+        (5, InterferenceReason.CPU),
+        (6, InterferenceReason.CPU),
+        (-1, InterferenceReason.UNKNOWN),
+        (7, InterferenceReason.UNKNOWN),
+    ],
+)
+def test_controller_reason_from_code(reason_code, expected):
+    assert controller_reason_from_code(reason_code) is expected

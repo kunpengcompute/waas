@@ -38,6 +38,21 @@ class InterferenceReason(str, Enum):
     CPU = "cpu"
 
 
+_CONTROLLER_REASON_BY_CODE = {
+    0: InterferenceReason.UNKNOWN,
+    1: InterferenceReason.CPU,
+    2: InterferenceReason.CPU,
+    3: InterferenceReason.L3,
+    4: InterferenceReason.MB,
+    5: InterferenceReason.CPU,
+    6: InterferenceReason.CPU,
+}
+
+
+def controller_reason_from_code(reason_code: int) -> InterferenceReason:
+    return _CONTROLLER_REASON_BY_CODE.get(reason_code, InterferenceReason.UNKNOWN)
+
+
 class InterferenceItem(StrictModel):
     pod_uid: str = Field(min_length=1)
     score: float
