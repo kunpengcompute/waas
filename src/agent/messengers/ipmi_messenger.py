@@ -6,6 +6,7 @@ Description: waas agent data messenger (with ipmitool)
 
 import subprocess
 import logging
+import random
 import util
 from messengers.messenger import Messenger
 
@@ -67,3 +68,6 @@ class IpmiMessenger(Messenger):
             logging.debug(f"Fixed header: 0x{shrinked_bytes[:COMPONENT_ID_LEN].hex().upper()}")
             content = shrinked_bytes[COMPONENT_ID_LEN:] # 丢弃ipmi返回头部
         return util.unpack_response_content(content)
+
+    def get_interference_reason(self) -> int:
+        return random.randint(min(util.LABEL_MAP.values()), max(util.LABEL_MAP.values()))
