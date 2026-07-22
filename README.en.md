@@ -68,7 +68,9 @@ Controller 使用以下 Agent 地址：
 --dynamic-agent-addr=http://127.0.0.1:18080
 ```
 
-`POST /v1/online-pods` 将请求中的 Pod cgroup 列表作为最新完整采集目标；空 Pod 列表会暂停 PMU 采集。第一阶段尚未实现干扰原因分析，因此 `GET /v1/interference` 固定返回 `unknown`。
+`POST /v1/online-pods` 将请求中的 Pod cgroup 列表作为最新完整采集目标；空 Pod 列表会暂停 PMU 采集。
+
+当前真实 BMC 干扰分类解析尚未接入。Agent 在每轮成功采集和 BMC 交互后随机生成一个 `0～6` 的内部原因编号，并保存为最近结果；`GET /v1/interference` 将其映射为 Controller 支持的 `unknown/l3/mb/cpu`。同一采集周期内重复查询不会重新生成原因。
 
 ### 线程模型
 

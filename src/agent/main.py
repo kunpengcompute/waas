@@ -11,6 +11,7 @@ import threading
 import uvicorn
 
 import util
+from agent_http.interference_store import InterferenceResultStore
 from agent_http.server import create_app
 from agent_http.store import PodSnapshotStore
 from sample import PerfCount
@@ -68,6 +69,29 @@ def _create_counter(cgroup_paths):
     return PerfCount(cgroup_paths=cgroup_paths)
 
 
+def _create_worker(
+    store,
+    stop_event,
+    interval,
+    processor,
+    messenger,
+    handler,
+    recorder,
+    interference_store,
+):
+    return SamplingWorker(
+        store=store,
+        stop_event=stop_event,
+        counter_factory=_create_counter,
+        interval=interval,
+        processor=processor,
+        messenger=messenger,
+        handler=handler,
+        recorder=recorder,
+        interference_store=interference_store,
+    )
+
+
 def _run_agent(worker, http_runner, store, stop_event):
     try:
         http_runner.start()
@@ -99,19 +123,20 @@ def main():
         recorder = DataRecorder(args.output, args.maxrows)
 
     store = PodSnapshotStore()
+    interference_store = InterferenceResultStore()
     stop_event = threading.Event()
-    worker = SamplingWorker(
+    worker = _create_worker(
         store=store,
         stop_event=stop_event,
-        counter_factory=_create_counter,
         interval=interval,
         processor=processor,
         messenger=messenger,
         handler=handler,
         recorder=recorder,
+        interference_store=interference_store,
     )
     config = uvicorn.Config(
-        create_app(store),
+        create_app(store, interference_store),
         host=args.http_host,
         port=args.http_port,
         log_level="info",
