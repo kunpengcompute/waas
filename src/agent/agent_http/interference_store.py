@@ -21,7 +21,7 @@ class InterferenceResultStore:
         normalized_node_name = node_name.strip()
         if not normalized_node_name:
             raise ValueError("node_name must not be empty")
-        if reason_code not in range(7):
+        if type(reason_code) is not int or reason_code not in range(7):
             raise ValueError("reason_code must be between 0 and 6")
 
         result = InterferenceResult(
