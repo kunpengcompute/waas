@@ -1,14 +1,19 @@
 from fastapi import FastAPI, HTTPException, Query
 
+from agent_http.interference_store import InterferenceResultStore
 from agent_http.models import (
     InterferenceResponse,
     OnlinePodsRequest,
     OnlinePodsResponse,
+    controller_reason_from_code,
 )
 from agent_http.store import NodeConflictError, PodSnapshotStore
 
 
-def create_app(store: PodSnapshotStore) -> FastAPI:
+def create_app(
+    store: PodSnapshotStore,
+    interference_store: InterferenceResultStore | None = None,
+) -> FastAPI:
     app = FastAPI(title="WAAS Agent", version="v1")
 
     @app.post("/v1/online-pods", response_model=OnlinePodsResponse)
@@ -36,7 +41,17 @@ def create_app(store: PodSnapshotStore) -> FastAPI:
         normalized_node_name = node_name.strip()
         if not normalized_node_name:
             raise HTTPException(status_code=422, detail="node name must not be empty")
-        return InterferenceResponse.unknown(normalized_node_name)
+        if interference_store is None:
+            return InterferenceResponse.unknown(normalized_node_name)
+        result = interference_store.current(normalized_node_name)
+        if result is None:
+            return InterferenceResponse.unknown(normalized_node_name)
+        return InterferenceResponse(
+            node_name=normalized_node_name,
+            reason=controller_reason_from_code(result.reason_code),
+            ttl_seconds=0,
+            items=(),
+        )
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

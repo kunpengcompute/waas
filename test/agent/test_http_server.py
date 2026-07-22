@@ -1,7 +1,9 @@
 import asyncio
+from datetime import datetime, timezone
 
 from httpx import ASGITransport, AsyncClient
 
+from agent_http.interference_store import InterferenceResultStore
 from agent_http.server import create_app
 from agent_http.store import PodSnapshotStore
 
@@ -38,6 +40,10 @@ def request(app, method, path, **kwargs):
 
 def app():
     return create_app(PodSnapshotStore())
+
+
+def app_with_results(results):
+    return create_app(PodSnapshotStore(), results)
 
 
 def test_publish_accepts_controller_snapshot():
@@ -98,13 +104,75 @@ def test_publish_rejects_conflicting_node():
 
 def test_interference_is_unknown_before_analysis_exists():
     response = request(
-        app(), "GET", "/v1/interference", params={"node_name": "node-a"}
+        app_with_results(InterferenceResultStore()),
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-a"},
     )
 
     assert response.status_code == 200
     assert response.json() == {
         "version": "v1",
         "node_name": "node-a",
+        "reason": "unknown",
+        "ttl_seconds": 0,
+        "items": [],
+    }
+
+
+def test_interference_returns_stored_mapped_reason_repeatedly():
+    results = InterferenceResultStore()
+    results.replace(
+        "node-a",
+        4,
+        datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
+    )
+    application = app_with_results(results)
+
+    first = request(
+        application,
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-a"},
+    )
+    second = request(
+        application,
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-a"},
+    )
+
+    assert first.status_code == 200
+    assert first.json() == {
+        "version": "v1",
+        "node_name": "node-a",
+        "reason": "mb",
+        "ttl_seconds": 0,
+        "items": [],
+    }
+    assert second.status_code == 200
+    assert second.json() == first.json()
+
+
+def test_interference_returns_unknown_for_another_node():
+    results = InterferenceResultStore()
+    results.replace(
+        "node-a",
+        3,
+        datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
+    )
+
+    response = request(
+        app_with_results(results),
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-b"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "version": "v1",
+        "node_name": "node-b",
         "reason": "unknown",
         "ttl_seconds": 0,
         "items": [],
