@@ -1,4 +1,5 @@
 import logging
+from datetime import datetime, timezone
 from threading import Event
 from typing import Callable
 
@@ -17,6 +18,7 @@ class SamplingWorker:
         handler,
         recorder=None,
         retry_interval: float = 1.0,
+        interference_store=None,
     ):
         self.store = store
         self.stop_event = stop_event
@@ -27,6 +29,7 @@ class SamplingWorker:
         self.handler = handler
         self.recorder = recorder
         self.retry_interval = retry_interval
+        self.interference_store = interference_store
 
     @staticmethod
     def _close_counter(counter) -> None:
@@ -97,6 +100,21 @@ class SamplingWorker:
                     advice = self.messenger.get_advice()
                     if advice and not self.stop_event.is_set():
                         self.handler.apply(advice)
+                    if (
+                        self.interference_store is not None
+                        and not self.stop_event.is_set()
+                        and self.store.current_revision() == active_revision
+                    ):
+                        reason_code = self.messenger.get_interference_reason()
+                        if (
+                            not self.stop_event.is_set()
+                            and self.store.current_revision() == active_revision
+                        ):
+                            self.interference_store.replace(
+                                snapshot.node_name,
+                                reason_code,
+                                datetime.now(timezone.utc),
+                            )
                 except Exception:
                     logging.exception("sampling downstream pipeline failed")
         finally:

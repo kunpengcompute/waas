@@ -2,6 +2,7 @@ from datetime import datetime, timezone
 from threading import Event, Thread
 from time import sleep
 
+from agent_http.interference_store import InterferenceResultStore
 from agent_http.models import OnlinePod, OnlinePodsRequest
 from agent_http.store import PodSnapshotStore
 from sampling_worker import SamplingWorker
@@ -290,3 +291,64 @@ def test_shutdown_during_sample_skips_downstream_pipeline():
 
     assert messenger.sent == []
     assert created[0].closed
+
+
+def test_successful_bmc_cycle_stores_interference_reason():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=(pod(),)))
+    results = InterferenceResultStore()
+
+    class ReasonMessenger(FakeMessenger):
+        def get_interference_reason(self):
+            return 3
+
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=ReasonMessenger(),
+        handler=FakeHandler(),
+        interference_store=results,
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: results.current("node-a") is not None)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert not thread.is_alive()
+    assert results.current("node-a").reason_code == 3
+
+
+def test_failed_bmc_cycle_does_not_replace_interference_reason():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=(pod(),)))
+    results = InterferenceResultStore()
+
+    class FailingMessenger(FakeMessenger):
+        def send_data(self, payload):
+            stop.set()
+            raise RuntimeError("BMC failed")
+
+        def get_interference_reason(self):
+            raise AssertionError("failed BMC cycle must not produce a reason")
+
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=FailingMessenger(),
+        handler=FakeHandler(),
+        interference_store=results,
+        retry_interval=0.01,
+    )
+
+    worker.run()
+
+    assert results.current("node-a") is None
