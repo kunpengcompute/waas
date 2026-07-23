@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import FastAPI, HTTPException, Query
 
 from agent_http.interference_store import InterferenceResultStore
@@ -24,11 +26,27 @@ def create_app(
                 detail=f"unsupported version: {request.version}",
             )
         try:
-            store.replace(request)
+            snapshot = store.replace(request)
         except NodeConflictError as error:
             raise HTTPException(status_code=409, detail=str(error)) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
+        logging.info(
+            "received online pod snapshot: node=%s timestamp=%s "
+            "pod_count=%d revision=%d",
+            snapshot.node_name,
+            snapshot.timestamp.isoformat(),
+            len(snapshot.pods),
+            snapshot.target_revision,
+        )
+        for pod in snapshot.pods:
+            logging.info(
+                "online pod: namespace=%s name=%s uid=%s cgroup_path=%s",
+                pod.namespace,
+                pod.name,
+                pod.uid,
+                pod.cgroup_path,
+            )
         return OnlinePodsResponse(
             accepted=True,
             message="online pod snapshot accepted",
@@ -41,17 +59,35 @@ def create_app(
         normalized_node_name = node_name.strip()
         if not normalized_node_name:
             raise HTTPException(status_code=422, detail="node name must not be empty")
-        if interference_store is None:
-            return InterferenceResponse.unknown(normalized_node_name)
-        result = interference_store.current(normalized_node_name)
+        result = (
+            interference_store.current(normalized_node_name)
+            if interference_store is not None
+            else None
+        )
         if result is None:
-            return InterferenceResponse.unknown(normalized_node_name)
-        return InterferenceResponse(
+            response = InterferenceResponse.unknown(normalized_node_name)
+            logging.info(
+                "return interference result: node=%s reason_code=none "
+                "reason=%s source=no_result",
+                normalized_node_name,
+                response.reason.value,
+            )
+            return response
+        response = InterferenceResponse(
             node_name=normalized_node_name,
             reason=controller_reason_from_code(result.reason_code),
             ttl_seconds=0,
             items=(),
         )
+        logging.info(
+            "return interference result: node=%s reason_code=%d reason=%s "
+            "timestamp=%s",
+            normalized_node_name,
+            result.reason_code,
+            response.reason.value,
+            result.timestamp.isoformat(),
+        )
+        return response
 
     @app.get("/healthz")
     async def healthz() -> dict[str, str]:

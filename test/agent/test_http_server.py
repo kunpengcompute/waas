@@ -1,4 +1,5 @@
 import asyncio
+import logging
 from datetime import datetime, timezone
 
 from httpx import ASGITransport, AsyncClient
@@ -65,6 +66,39 @@ def test_publish_accepts_empty_snapshot():
     assert response.json()["accepted"] is True
 
 
+def test_publish_logs_accepted_snapshot_and_each_pod(caplog):
+    caplog.set_level(logging.INFO)
+
+    response = request(
+        app(),
+        "POST",
+        "/v1/online-pods",
+        json=payload(
+            pods=[
+                pod(uid="uid-a", path="kubepods.slice/pod-a.slice"),
+                pod(uid="uid-b", path="kubepods.slice/pod-b.slice"),
+            ]
+        ),
+    )
+
+    assert response.status_code == 200
+    assert (
+        "received online pod snapshot: node=node-a "
+        "timestamp=2026-07-20T10:30:00+08:00 pod_count=2 revision=1"
+        in caplog.messages
+    )
+    assert (
+        "online pod: namespace=default name=online-a uid=uid-a "
+        "cgroup_path=kubepods.slice/pod-a.slice"
+        in caplog.messages
+    )
+    assert (
+        "online pod: namespace=default name=online-a uid=uid-b "
+        "cgroup_path=kubepods.slice/pod-b.slice"
+        in caplog.messages
+    )
+
+
 def test_publish_rejects_unsupported_version():
     response = request(
         app(), "POST", "/v1/online-pods", json=payload(version="v2")
@@ -120,6 +154,24 @@ def test_interference_is_unknown_before_analysis_exists():
     }
 
 
+def test_interference_logs_unknown_when_analysis_does_not_exist(caplog):
+    caplog.set_level(logging.INFO)
+
+    response = request(
+        app_with_results(InterferenceResultStore()),
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-a"},
+    )
+
+    assert response.status_code == 200
+    assert (
+        "return interference result: node=node-a reason_code=none "
+        "reason=unknown source=no_result"
+        in caplog.messages
+    )
+
+
 def test_interference_returns_stored_mapped_reason_repeatedly():
     results = InterferenceResultStore()
     results.replace(
@@ -152,6 +204,30 @@ def test_interference_returns_stored_mapped_reason_repeatedly():
     }
     assert second.status_code == 200
     assert second.json() == first.json()
+
+
+def test_interference_logs_stored_reason(caplog):
+    caplog.set_level(logging.INFO)
+    results = InterferenceResultStore()
+    results.replace(
+        "node-a",
+        4,
+        datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
+    )
+
+    response = request(
+        app_with_results(results),
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-a"},
+    )
+
+    assert response.status_code == 200
+    assert (
+        "return interference result: node=node-a reason_code=4 reason=mb "
+        "timestamp=2026-07-22T10:30:00+00:00"
+        in caplog.messages
+    )
 
 
 def test_interference_returns_unknown_for_another_node():
