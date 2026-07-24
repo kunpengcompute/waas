@@ -136,7 +136,7 @@ def test_publish_rejects_conflicting_node():
     assert response.status_code == 409
 
 
-def test_interference_is_unknown_before_analysis_exists():
+def test_interference_is_empty_before_analysis_exists():
     response = request(
         app_with_results(InterferenceResultStore()),
         "GET",
@@ -148,13 +148,11 @@ def test_interference_is_unknown_before_analysis_exists():
     assert response.json() == {
         "version": "v1",
         "node_name": "node-a",
-        "reason": "unknown",
-        "ttl_seconds": 0,
-        "items": [],
+        "reasons": [],
     }
 
 
-def test_interference_logs_unknown_when_analysis_does_not_exist(caplog):
+def test_interference_logs_empty_when_analysis_does_not_exist(caplog):
     caplog.set_level(logging.INFO)
 
     response = request(
@@ -166,17 +164,16 @@ def test_interference_logs_unknown_when_analysis_does_not_exist(caplog):
 
     assert response.status_code == 200
     assert (
-        "return interference result: node=node-a reason_code=none "
-        "reason=unknown source=no_result"
+        "return interference result: node=node-a reasons=[] source=no_result"
         in caplog.messages
     )
 
 
-def test_interference_returns_stored_mapped_reason_repeatedly():
+def test_interference_returns_stored_mapped_reasons_repeatedly():
     results = InterferenceResultStore()
     results.replace(
         "node-a",
-        4,
+        (3, 1, 4, 2, 0),
         datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
     )
     application = app_with_results(results)
@@ -198,20 +195,41 @@ def test_interference_returns_stored_mapped_reason_repeatedly():
     assert first.json() == {
         "version": "v1",
         "node_name": "node-a",
-        "reason": "mb",
-        "ttl_seconds": 0,
-        "items": [],
+        "reasons": ["cpu", "mb", "l3"],
     }
     assert second.status_code == 200
     assert second.json() == first.json()
 
 
-def test_interference_logs_stored_reason(caplog):
+def test_interference_returns_none_when_all_results_are_base():
+    results = InterferenceResultStore()
+    results.replace(
+        "node-a",
+        (0,),
+        datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
+    )
+
+    response = request(
+        app_with_results(results),
+        "GET",
+        "/v1/interference",
+        params={"node_name": "node-a"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "version": "v1",
+        "node_name": "node-a",
+        "reasons": ["none"],
+    }
+
+
+def test_interference_logs_stored_reasons(caplog):
     caplog.set_level(logging.INFO)
     results = InterferenceResultStore()
     results.replace(
         "node-a",
-        4,
+        (4, 3),
         datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
     )
 
@@ -224,7 +242,8 @@ def test_interference_logs_stored_reason(caplog):
 
     assert response.status_code == 200
     assert (
-        "return interference result: node=node-a reason_code=4 reason=mb "
+        "return interference result: node=node-a reason_codes=(4, 3) "
+        "reasons=['mb', 'l3'] "
         "timestamp=2026-07-22T10:30:00+00:00"
         in caplog.messages
     )
@@ -234,7 +253,7 @@ def test_interference_returns_unknown_for_another_node():
     results = InterferenceResultStore()
     results.replace(
         "node-a",
-        3,
+        (3,),
         datetime(2026, 7, 22, 10, 30, tzinfo=timezone.utc),
     )
 
@@ -249,9 +268,7 @@ def test_interference_returns_unknown_for_another_node():
     assert response.json() == {
         "version": "v1",
         "node_name": "node-b",
-        "reason": "unknown",
-        "ttl_seconds": 0,
-        "items": [],
+        "reasons": [],
     }
 
 

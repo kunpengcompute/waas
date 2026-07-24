@@ -87,32 +87,50 @@ class SamplingWorker:
                     continue
 
                 try:
-                    if self.recorder is not None:
-                        self.recorder.insert(data)
-                    payload = self.processor.process(data)
-                    if self.stop_event.is_set():
-                        return
-                    self.messenger.send_data(payload)
-                    if self.stop_event.is_set():
-                        return
-                    self.messenger.get_advice()
-                    if self.stop_event.is_set():
-                        return
-                    if (
-                        self.interference_store is not None
-                        and not self.stop_event.is_set()
-                        and self.store.current_revision() == active_revision
-                    ):
-                        reason_code = self.messenger.get_interference_reason()
-                        if (
-                            not self.stop_event.is_set()
-                            and self.store.current_revision() == active_revision
-                        ):
-                            self.interference_store.replace(
-                                snapshot.node_name,
-                                reason_code,
-                                datetime.now(timezone.utc),
+                    reason_codes = []
+                    for cgroup_path, cgroup_metrics in data.get("all", {}).items():
+                        if self.stop_event.is_set():
+                            return
+                        if self.store.current_revision() != active_revision:
+                            break
+                        cgroup_data = {
+                            "start_time": data["start_time"],
+                            "stop_time": data["stop_time"],
+                            "cgroup_path": cgroup_path,
+                            "all": cgroup_metrics,
+                        }
+                        if self.recorder is not None:
+                            try:
+                                self.recorder.insert(cgroup_data)
+                            except Exception:
+                                logging.exception(
+                                    "record cgroup metrics failed: cgroup_path=%s",
+                                    cgroup_path,
+                                )
+                        try:
+                            payload = self.processor.process(cgroup_data)
+                            self.messenger.send_data(payload)
+                            self.messenger.get_advice()
+                            if self.interference_store is not None:
+                                reason_codes.append(
+                                    self.messenger.get_interference_reason()
+                                )
+                        except Exception:
+                            logging.exception(
+                                "cgroup analysis failed: cgroup_path=%s",
+                                cgroup_path,
                             )
+
+                    if self.stop_event.is_set():
+                        return
+                    if self.store.current_revision() != active_revision:
+                        continue
+                    if self.interference_store is not None:
+                        self.interference_store.replace(
+                            snapshot.node_name,
+                            tuple(reason_codes),
+                            datetime.now(timezone.utc),
+                        )
                 except Exception:
                     logging.exception("sampling downstream pipeline failed")
         finally:

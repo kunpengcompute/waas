@@ -32,14 +32,14 @@ class OnlinePodsResponse(StrictModel):
 
 
 class InterferenceReason(str, Enum):
-    UNKNOWN = "unknown"
+    NONE = "none"
     L3 = "l3"
     MB = "mb"
     CPU = "cpu"
 
 
 _CONTROLLER_REASON_BY_CODE = {
-    0: InterferenceReason.UNKNOWN,
+    0: InterferenceReason.NONE,
     1: InterferenceReason.CPU,
     2: InterferenceReason.CPU,
     3: InterferenceReason.L3,
@@ -49,27 +49,18 @@ _CONTROLLER_REASON_BY_CODE = {
 }
 
 
-def controller_reason_from_code(reason_code: int) -> InterferenceReason:
-    return _CONTROLLER_REASON_BY_CODE.get(reason_code, InterferenceReason.UNKNOWN)
-
-
-class InterferenceItem(StrictModel):
-    pod_uid: str = Field(min_length=1)
-    score: float
+def controller_reason_from_code(reason_code: int) -> InterferenceReason | None:
+    return _CONTROLLER_REASON_BY_CODE.get(reason_code)
 
 
 class InterferenceResponse(StrictModel):
     version: str = "v1"
     node_name: str = Field(min_length=1)
-    reason: InterferenceReason
-    ttl_seconds: int = Field(ge=0)
-    items: tuple[InterferenceItem, ...]
+    reasons: tuple[InterferenceReason, ...]
 
     @classmethod
-    def unknown(cls, node_name: str) -> "InterferenceResponse":
+    def empty(cls, node_name: str) -> "InterferenceResponse":
         return cls(
             node_name=node_name,
-            reason=InterferenceReason.UNKNOWN,
-            ttl_seconds=0,
-            items=(),
+            reasons=(),
         )

@@ -4,12 +4,20 @@ from fastapi import FastAPI, HTTPException, Query
 
 from agent_http.interference_store import InterferenceResultStore
 from agent_http.models import (
+    InterferenceReason,
     InterferenceResponse,
     OnlinePodsRequest,
     OnlinePodsResponse,
     controller_reason_from_code,
 )
 from agent_http.store import NodeConflictError, PodSnapshotStore
+
+
+_ACTIVE_INTERFERENCE_REASON_ORDER = (
+    InterferenceReason.CPU,
+    InterferenceReason.MB,
+    InterferenceReason.L3,
+)
 
 
 def create_app(
@@ -65,26 +73,34 @@ def create_app(
             else None
         )
         if result is None:
-            response = InterferenceResponse.unknown(normalized_node_name)
+            response = InterferenceResponse.empty(normalized_node_name)
             logging.info(
-                "return interference result: node=%s reason_code=none "
-                "reason=%s source=no_result",
+                "return interference result: node=%s reasons=[] source=no_result",
                 normalized_node_name,
-                response.reason.value,
             )
             return response
+        mapped_reasons = {
+            reason
+            for reason_code in result.reason_codes
+            if (reason := controller_reason_from_code(reason_code)) is not None
+        }
+        reasons = tuple(
+            reason
+            for reason in _ACTIVE_INTERFERENCE_REASON_ORDER
+            if reason in mapped_reasons
+        )
+        if not reasons and InterferenceReason.NONE in mapped_reasons:
+            reasons = (InterferenceReason.NONE,)
         response = InterferenceResponse(
             node_name=normalized_node_name,
-            reason=controller_reason_from_code(result.reason_code),
-            ttl_seconds=0,
-            items=(),
+            reasons=reasons,
         )
         logging.info(
-            "return interference result: node=%s reason_code=%d reason=%s "
+            "return interference result: node=%s reason_codes=%s reasons=%s "
             "timestamp=%s",
             normalized_node_name,
-            result.reason_code,
-            response.reason.value,
+            result.reason_codes,
+            [reason.value for reason in response.reasons],
             result.timestamp.isoformat(),
         )
         return response

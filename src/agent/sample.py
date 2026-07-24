@@ -182,8 +182,11 @@ class PerfCount:
     def get_data(self):
         result = {}
         for data in self.results.iter:
-            if not result.get(data.cpu):
-                result[data.cpu] = {}
+            if self.cgroup_paths:
+                cgroup_data = result.setdefault(data.cgroupName, {})
+            else:
+                cgroup_data = result
+            cpu_data = cgroup_data.setdefault(data.cpu, {})
 
             if data.evt.startswith('r'):
                 evt_name = EVENT_NAME_MAP[data.evt]
@@ -195,9 +198,10 @@ class PerfCount:
 
             # 原始指标均用大写，以示区分
             evt_name = evt_name.upper()
-            result[data.cpu][evt_name] = {}
-            result[data.cpu][evt_name]['count'] = data.count
-            result[data.cpu][evt_name]['countPercent'] = data.countPercent
+            cpu_data[evt_name] = {
+                'count': data.count,
+                'countPercent': data.countPercent,
+            }
 
         return {
             "start_time": self.start_time,

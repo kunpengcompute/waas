@@ -39,3 +39,33 @@ def test_perf_count_close_releases_descriptor_once(monkeypatch):
     counter.close()
 
     assert fake.closed == [42]
+
+
+def test_get_data_keeps_metrics_separate_by_cgroup(monkeypatch):
+    sample, _ = load_sample_with_fake_kperf(monkeypatch)
+    counter = sample.PerfCount(cgroup_paths=("path-a", "path-b"))
+    counter.results = SimpleNamespace(
+        iter=(
+            SimpleNamespace(
+                cgroupName="path-a",
+                cpu=0,
+                evt="r0008",
+                groupId=1,
+                count=10,
+                countPercent=100.0,
+            ),
+            SimpleNamespace(
+                cgroupName="path-b",
+                cpu=0,
+                evt="r0008",
+                groupId=1,
+                count=20,
+                countPercent=100.0,
+            ),
+        )
+    )
+
+    data = counter.get_data()
+
+    assert data["all"]["path-a"][0]["INST_RETIRED"]["count"] == 10
+    assert data["all"]["path-b"][0]["INST_RETIRED"]["count"] == 20

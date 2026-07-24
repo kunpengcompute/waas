@@ -39,8 +39,17 @@ class FakeCounter:
         return {
             "start_time": None,
             "stop_time": None,
-            "all": {},
-            "sampled_paths": self.paths,
+            "all": {
+                path: {
+                    0: {
+                        "SAMPLED_PATH": {
+                            "count": path,
+                            "countPercent": 100.0,
+                        }
+                    }
+                }
+                for path in self.paths
+            },
         }
 
     def close(self):
@@ -224,7 +233,7 @@ def test_sample_from_replaced_snapshot_is_not_forwarded():
     thread.join(timeout=1)
 
     assert all(
-        payload["sampled_paths"] != ("path-a",)
+        payload["all"][0]["SAMPLED_PATH"]["count"] != "path-a"
         for payload in messenger.sent
     )
 
@@ -287,14 +296,68 @@ def test_shutdown_during_sample_skips_downstream_pipeline():
     assert created[0].closed
 
 
-def test_successful_bmc_cycle_stores_interference_reason():
+def test_recorder_receives_one_row_per_cgroup():
     store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
-    store.replace(request(pods=(pod(),)))
+    store.replace(
+        request(
+            pods=(
+                pod(uid="uid-a", path="path-a"),
+                pod(uid="uid-b", path="path-b"),
+            )
+        )
+    )
+
+    class FakeRecorder:
+        def __init__(self):
+            self.inserted = []
+            self.closed = False
+
+        def insert(self, data):
+            self.inserted.append(data)
+
+        def close(self):
+            self.closed = True
+
+    recorder = FakeRecorder()
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=FakeMessenger(),
+        recorder=recorder,
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: len(recorder.inserted) >= 2)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert [
+        data["cgroup_path"]
+        for data in recorder.inserted[:2]
+    ] == ["path-a", "path-b"]
+    assert recorder.closed
+
+
+def test_successful_bmc_cycle_analyzes_each_cgroup_and_stores_reasons():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(
+        request(
+            pods=(
+                pod(uid="uid-a", path="path-a"),
+                pod(uid="uid-b", path="path-b"),
+            )
+        )
+    )
     results = InterferenceResultStore()
 
     class ReasonMessenger(FakeMessenger):
         def get_interference_reason(self):
-            return 3
+            return 3 if len(self.sent) % 2 == 1 else 4
 
     messenger = ReasonMessenger()
     worker = SamplingWorker(
@@ -315,18 +378,68 @@ def test_successful_bmc_cycle_stores_interference_reason():
     thread.join(timeout=1)
 
     assert not thread.is_alive()
-    assert messenger.advice_requests > 0
-    assert results.current("node-a").reason_code == 3
+    assert messenger.advice_requests >= 2
+    assert [
+        payload["all"][0]["SAMPLED_PATH"]["count"]
+        for payload in messenger.sent[:2]
+    ] == ["path-a", "path-b"]
+    assert results.current("node-a").reason_codes == (3, 4)
 
 
-def test_failed_bmc_cycle_does_not_replace_interference_reason():
+def test_partial_bmc_failure_keeps_successful_cgroup_reason():
     store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
-    store.replace(request(pods=(pod(),)))
+    store.replace(
+        request(
+            pods=(
+                pod(uid="uid-a", path="path-a"),
+                pod(uid="uid-b", path="path-b"),
+            )
+        )
+    )
     results = InterferenceResultStore()
 
     class FailingMessenger(FakeMessenger):
         def send_data(self, payload):
-            stop.set()
+            path = payload["all"][0]["SAMPLED_PATH"]["count"]
+            if path == "path-a":
+                raise RuntimeError("BMC failed")
+            super().send_data(payload)
+
+        def get_interference_reason(self):
+            return 4
+
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=FailingMessenger(),
+        interference_store=results,
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: results.current("node-a") is not None)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert results.current("node-a").reason_codes == (4,)
+
+
+def test_all_bmc_failures_replace_previous_result_with_empty_reasons():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=(pod(),)))
+    results = InterferenceResultStore()
+    results.replace(
+        "node-a",
+        (3,),
+        datetime(2026, 7, 20, 10, 29, tzinfo=timezone.utc),
+    )
+
+    class FailingMessenger(FakeMessenger):
+        def send_data(self, payload):
             raise RuntimeError("BMC failed")
 
         def get_interference_reason(self):
@@ -342,7 +455,11 @@ def test_failed_bmc_cycle_does_not_replace_interference_reason():
         interference_store=results,
         retry_interval=0.01,
     )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: results.current("node-a").reason_codes == ())
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
 
-    worker.run()
-
-    assert results.current("node-a") is None
+    assert results.current("node-a").reason_codes == ()
