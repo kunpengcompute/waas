@@ -58,13 +58,13 @@ def test_create_worker_passes_interference_store(monkeypatch):
         interval=1,
         processor=object(),
         messenger=object(),
-        handler=object(),
         recorder=None,
         interference_store=result_store,
     )
 
     assert isinstance(worker, FakeSamplingWorker)
     assert captured["interference_store"] is result_store
+    assert "handler" not in captured
 
 
 def test_run_agent_runs_sampling_on_caller_thread_and_cleans_up(monkeypatch):

@@ -10,17 +10,13 @@ import threading
 
 import uvicorn
 
-import util
 from agent_http.interference_store import InterferenceResultStore
 from agent_http.server import create_app
 from agent_http.store import PodSnapshotStore
 from sample import PerfCount
 from data_process import DataProcessor
 from layers.numa_reduction import NumaReduction
-from handlers.core_handler import CoreHandler
-from handlers.soc_handler import SocHandler
 from messengers.ipmi_messenger import IpmiMessenger as Messenger
-from handler import Handler
 from data_recorder import DataRecorder
 from http_server_runner import HttpServerRunner
 from sampling_worker import SamplingWorker
@@ -75,7 +71,6 @@ def _create_worker(
     interval,
     processor,
     messenger,
-    handler,
     recorder,
     interference_store,
 ):
@@ -86,7 +81,6 @@ def _create_worker(
         interval=interval,
         processor=processor,
         messenger=messenger,
-        handler=handler,
         recorder=recorder,
         interference_store=interference_store,
     )
@@ -114,10 +108,6 @@ def main():
 
     messenger = Messenger()
 
-    handler = Handler()
-    handler.add_handler(util.Weapon.CORE.value, CoreHandler())
-    handler.add_handler(util.Weapon.SOC.value, SocHandler())
-
     recorder = None
     if args.output:
         recorder = DataRecorder(args.output, args.maxrows)
@@ -131,7 +121,6 @@ def main():
         interval=interval,
         processor=processor,
         messenger=messenger,
-        handler=handler,
         recorder=recorder,
         interference_store=interference_store,
     )

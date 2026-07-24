@@ -15,7 +15,6 @@ class SamplingWorker:
         interval: float,
         processor,
         messenger,
-        handler,
         recorder=None,
         retry_interval: float = 1.0,
         interference_store=None,
@@ -26,7 +25,6 @@ class SamplingWorker:
         self.interval = interval
         self.processor = processor
         self.messenger = messenger
-        self.handler = handler
         self.recorder = recorder
         self.retry_interval = retry_interval
         self.interference_store = interference_store
@@ -97,9 +95,9 @@ class SamplingWorker:
                     self.messenger.send_data(payload)
                     if self.stop_event.is_set():
                         return
-                    advice = self.messenger.get_advice()
-                    if advice and not self.stop_event.is_set():
-                        self.handler.apply(advice)
+                    self.messenger.get_advice()
+                    if self.stop_event.is_set():
+                        return
                     if (
                         self.interference_store is not None
                         and not self.stop_event.is_set()

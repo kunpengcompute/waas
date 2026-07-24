@@ -55,17 +55,14 @@ class FakeProcessor:
 class FakeMessenger:
     def __init__(self):
         self.sent = []
+        self.advice_requests = 0
 
     def send_data(self, payload):
         self.sent.append(payload)
 
     def get_advice(self):
+        self.advice_requests += 1
         return {}
-
-
-class FakeHandler:
-    def apply(self, advice):
-        raise AssertionError("empty advice must not be applied")
 
 
 def build_worker(store, stop, created, sampled):
@@ -76,7 +73,6 @@ def build_worker(store, stop, created, sampled):
         interval=0,
         processor=FakeProcessor(),
         messenger=FakeMessenger(),
-        handler=FakeHandler(),
         retry_interval=0.01,
     )
 
@@ -159,7 +155,7 @@ def test_counter_creation_failure_is_retried():
         return FakeCounter(paths, created, sampled)
 
     worker = SamplingWorker(
-        store, stop, factory, 0, FakeProcessor(), FakeMessenger(), FakeHandler(),
+        store, stop, factory, 0, FakeProcessor(), FakeMessenger(),
         retry_interval=0.01,
     )
     thread = Thread(target=worker.run)
@@ -186,7 +182,7 @@ def test_sampling_failure_recreates_counter_and_retries():
         return FakeCounter(paths, created, sampled)
 
     worker = SamplingWorker(
-        store, stop, factory, 0, FakeProcessor(), FakeMessenger(), FakeHandler(),
+        store, stop, factory, 0, FakeProcessor(), FakeMessenger(),
         retry_interval=0.01,
     )
     thread = Thread(target=worker.run)
@@ -217,7 +213,6 @@ def test_sample_from_replaced_snapshot_is_not_forwarded():
         interval=0,
         processor=FakeProcessor(),
         messenger=messenger,
-        handler=FakeHandler(),
         retry_interval=0.01,
     )
     thread = Thread(target=worker.run)
@@ -249,7 +244,7 @@ def test_counter_close_failure_does_not_stop_target_switch():
         return FakeCounter(paths, created, sampled)
 
     worker = SamplingWorker(
-        store, stop, factory, 0, FakeProcessor(), FakeMessenger(), FakeHandler(),
+        store, stop, factory, 0, FakeProcessor(), FakeMessenger(),
         retry_interval=0.01,
     )
     thread = Thread(target=worker.run)
@@ -283,7 +278,6 @@ def test_shutdown_during_sample_skips_downstream_pipeline():
         interval=0,
         processor=FakeProcessor(),
         messenger=messenger,
-        handler=FakeHandler(),
         retry_interval=0.01,
     )
 
@@ -302,14 +296,14 @@ def test_successful_bmc_cycle_stores_interference_reason():
         def get_interference_reason(self):
             return 3
 
+    messenger = ReasonMessenger()
     worker = SamplingWorker(
         store=store,
         stop_event=stop,
         counter_factory=lambda paths: FakeCounter(paths, created, sampled),
         interval=0,
         processor=FakeProcessor(),
-        messenger=ReasonMessenger(),
-        handler=FakeHandler(),
+        messenger=messenger,
         interference_store=results,
         retry_interval=0.01,
     )
@@ -321,6 +315,7 @@ def test_successful_bmc_cycle_stores_interference_reason():
     thread.join(timeout=1)
 
     assert not thread.is_alive()
+    assert messenger.advice_requests > 0
     assert results.current("node-a").reason_code == 3
 
 
@@ -344,7 +339,6 @@ def test_failed_bmc_cycle_does_not_replace_interference_reason():
         interval=0,
         processor=FakeProcessor(),
         messenger=FailingMessenger(),
-        handler=FakeHandler(),
         interference_store=results,
         retry_interval=0.01,
     )
