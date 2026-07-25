@@ -38,13 +38,13 @@ class SamplingWorker:
                 logging.exception("close PerfCount failed")
 
     def run(self) -> None:
-        counter = None
+        counters = {}
         active_revision = 0
         try:
             while not self.stop_event.is_set():
                 snapshot = self.store.current()
                 if snapshot is None or (
-                    counter is None
+                    not counters
                     and snapshot.target_revision == active_revision
                     and not snapshot.cgroup_paths
                 ):
@@ -53,87 +53,113 @@ class SamplingWorker:
                         return
 
                 if snapshot.target_revision != active_revision:
-                    self._close_counter(counter)
-                    counter = None
-                    if not snapshot.cgroup_paths:
-                        active_revision = snapshot.target_revision
+                    desired_paths = set(snapshot.cgroup_paths)
+                    for cgroup_path in tuple(counters):
+                        if cgroup_path not in desired_paths:
+                            self._close_counter(counters.pop(cgroup_path))
+                    active_revision = snapshot.target_revision
+                    if (
+                        not snapshot.cgroup_paths
+                        and self.interference_store is not None
+                    ):
+                        self.interference_store.replace(
+                            snapshot.node_name,
+                            (),
+                            datetime.now(timezone.utc),
+                        )
+
+                for cgroup_path in snapshot.cgroup_paths:
+                    if cgroup_path in counters:
                         continue
                     try:
-                        counter = self.counter_factory(snapshot.cgroup_paths)
-                        active_revision = snapshot.target_revision
+                        counters[cgroup_path] = self.counter_factory(
+                            (cgroup_path,)
+                        )
                     except Exception:
-                        logging.exception("create PerfCount failed")
+                        logging.exception(
+                            "create PerfCount failed: cgroup_path=%s",
+                            cgroup_path,
+                        )
+
+                if not counters:
+                    if snapshot.cgroup_paths:
                         self.stop_event.wait(self.retry_interval)
+                    continue
+
+                reason_codes = []
+                for cgroup_path in snapshot.cgroup_paths:
+                    if self.stop_event.is_set():
+                        return
+                    if self.store.current_revision() != active_revision:
+                        break
+
+                    counter = counters.get(cgroup_path)
+                    if counter is None:
                         continue
 
-                if counter is None:
-                    continue
-
-                try:
-                    counter.count(self.interval)
-                    data = counter.get_data()
-                except Exception:
-                    logging.exception("sample pod cgroups failed")
-                    self._close_counter(counter)
-                    counter = None
-                    active_revision = 0
-                    self.stop_event.wait(self.retry_interval)
-                    continue
-
-                if self.stop_event.is_set():
-                    return
-
-                if self.store.current_revision() != active_revision:
-                    continue
-
-                try:
-                    reason_codes = []
-                    for cgroup_path, cgroup_metrics in data.get("all", {}).items():
-                        if self.stop_event.is_set():
-                            return
-                        if self.store.current_revision() != active_revision:
-                            break
-                        cgroup_data = {
-                            "start_time": data["start_time"],
-                            "stop_time": data["stop_time"],
-                            "cgroup_path": cgroup_path,
-                            "all": cgroup_metrics,
-                        }
-                        if self.recorder is not None:
-                            try:
-                                self.recorder.insert(cgroup_data)
-                            except Exception:
-                                logging.exception(
-                                    "record cgroup metrics failed: cgroup_path=%s",
-                                    cgroup_path,
-                                )
-                        try:
-                            payload = self.processor.process(cgroup_data)
-                            self.messenger.send_data(payload)
-                            self.messenger.get_advice()
-                            if self.interference_store is not None:
-                                reason_codes.append(
-                                    self.messenger.get_interference_reason()
-                                )
-                        except Exception:
-                            logging.exception(
-                                "cgroup analysis failed: cgroup_path=%s",
-                                cgroup_path,
-                            )
+                    try:
+                        counter.count(self.interval)
+                        data = counter.get_data()
+                    except Exception:
+                        logging.exception(
+                            "sample pod cgroup failed: cgroup_path=%s",
+                            cgroup_path,
+                        )
+                        self._close_counter(counters.pop(cgroup_path))
+                        continue
 
                     if self.stop_event.is_set():
                         return
                     if self.store.current_revision() != active_revision:
-                        continue
-                    if self.interference_store is not None:
-                        self.interference_store.replace(
-                            snapshot.node_name,
-                            tuple(reason_codes),
-                            datetime.now(timezone.utc),
+                        break
+
+                    cgroup_metrics = data.get("all", {}).get(cgroup_path)
+                    if cgroup_metrics is None:
+                        logging.error(
+                            "sample result missing cgroup: cgroup_path=%s",
+                            cgroup_path,
                         )
-                except Exception:
-                    logging.exception("sampling downstream pipeline failed")
+                        continue
+                    cgroup_data = {
+                        "start_time": data["start_time"],
+                        "stop_time": data["stop_time"],
+                        "cgroup_path": cgroup_path,
+                        "all": cgroup_metrics,
+                    }
+                    if self.recorder is not None:
+                        try:
+                            self.recorder.insert(cgroup_data)
+                        except Exception:
+                            logging.exception(
+                                "record cgroup metrics failed: cgroup_path=%s",
+                                cgroup_path,
+                            )
+                    try:
+                        payload = self.processor.process(cgroup_data)
+                        self.messenger.send_data(payload)
+                        self.messenger.get_advice()
+                        if self.interference_store is not None:
+                            reason_codes.append(
+                                self.messenger.get_interference_reason()
+                            )
+                    except Exception:
+                        logging.exception(
+                            "cgroup analysis failed: cgroup_path=%s",
+                            cgroup_path,
+                        )
+
+                if self.stop_event.is_set():
+                    return
+                if self.store.current_revision() != active_revision:
+                    continue
+                if self.interference_store is not None:
+                    self.interference_store.replace(
+                        snapshot.node_name,
+                        tuple(reason_codes),
+                        datetime.now(timezone.utc),
+                    )
         finally:
-            self._close_counter(counter)
+            for counter in counters.values():
+                self._close_counter(counter)
             if self.recorder is not None:
                 self.recorder.close()

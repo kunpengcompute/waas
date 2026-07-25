@@ -111,6 +111,30 @@ def test_worker_waits_for_snapshot_then_passes_paths_to_counter():
     assert created[0].closed
 
 
+def test_each_cgroup_uses_an_independent_counter():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(
+        request(
+            pods=(
+                pod(uid="uid-a", path="path-a"),
+                pod(uid="uid-b", path="path-b"),
+            )
+        )
+    )
+    worker = build_worker(store, stop, created, sampled)
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: len(sampled) >= 2)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert [counter.paths for counter in created] == [
+        ("path-a",),
+        ("path-b",),
+    ]
+
+
 def test_equivalent_snapshot_does_not_recreate_counter():
     store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
     store.replace(request(pods=(pod(),)))
@@ -177,6 +201,40 @@ def test_counter_creation_failure_is_retried():
     assert len(attempts) >= 2
 
 
+def test_counter_creation_failure_does_not_block_other_cgroups():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(
+        request(
+            pods=(
+                pod(uid="uid-a", path="path-a"),
+                pod(uid="uid-b", path="path-b"),
+            )
+        )
+    )
+    attempts = []
+
+    def factory(paths):
+        attempts.append(tuple(paths))
+        if tuple(paths) == ("path-a",):
+            raise RuntimeError("open failed")
+        return FakeCounter(paths, created, sampled)
+
+    worker = SamplingWorker(
+        store, stop, factory, 0, FakeProcessor(), FakeMessenger(),
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: ("path-b",) in sampled)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert ("path-a",) in attempts
+    assert ("path-b",) in attempts
+    assert all(counter.paths == ("path-b",) for counter in created)
+
+
 def test_sampling_failure_recreates_counter_and_retries():
     store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
     store.replace(request(pods=(pod(),)))
@@ -203,6 +261,48 @@ def test_sampling_failure_recreates_counter_and_retries():
 
     assert len(created) == 2
     assert created[0].closed
+
+
+def test_sampling_failure_does_not_block_other_cgroups():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(
+        request(
+            pods=(
+                pod(uid="uid-a", path="path-a"),
+                pod(uid="uid-b", path="path-b"),
+            )
+        )
+    )
+
+    class PathFailingCounter(FakeCounter):
+        def count(self, interval):
+            if self.paths == ("path-a",):
+                raise RuntimeError("read failed")
+            super().count(interval)
+
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: PathFailingCounter(
+            paths, created, sampled
+        ),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=FakeMessenger(),
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: ("path-b",) in sampled)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert any(
+        counter.paths == ("path-a",) and counter.closed
+        for counter in created
+    )
+    assert ("path-b",) in sampled
 
 
 def test_sample_from_replaced_snapshot_is_not_forwarded():
@@ -463,3 +563,38 @@ def test_all_bmc_failures_replace_previous_result_with_empty_reasons():
     thread.join(timeout=1)
 
     assert results.current("node-a").reason_codes == ()
+
+
+def test_empty_snapshot_clears_previous_interference_reasons():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=()))
+    results = InterferenceResultStore()
+    results.replace(
+        "node-a",
+        (3,),
+        datetime(2026, 7, 20, 10, 29, tzinfo=timezone.utc),
+    )
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=FakeMessenger(),
+        interference_store=results,
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    try:
+        wait_until(
+            lambda: results.current("node-a").reason_codes == (),
+            timeout=0.1,
+        )
+    finally:
+        stop.set()
+        store.close()
+        thread.join(timeout=1)
+
+    assert results.current("node-a").reason_codes == ()
+    assert created == []
