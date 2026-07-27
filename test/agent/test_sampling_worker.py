@@ -135,6 +135,36 @@ def test_each_cgroup_uses_an_independent_counter():
     ]
 
 
+def test_worker_waits_for_snapshot_change_with_cycle_interval():
+    stop, created, sampled, waits = Event(), [], [], []
+
+    class RecordingStore(PodSnapshotStore):
+        def wait_for_change(self, after_revision, timeout=None):
+            waits.append((after_revision, timeout))
+            if timeout is not None:
+                stop.set()
+                return None
+            return super().wait_for_change(after_revision, timeout)
+
+    store = RecordingStore()
+    store.replace(request(pods=(pod(),)))
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        cycle_interval=10,
+        processor=FakeProcessor(),
+        messenger=FakeMessenger(),
+        retry_interval=0.01,
+    )
+
+    worker.run()
+
+    assert sampled == [("path-a",)]
+    assert waits == [(1, 10)]
+
+
 def test_equivalent_snapshot_does_not_recreate_counter():
     store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
     store.replace(request(pods=(pod(),)))

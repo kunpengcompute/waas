@@ -77,7 +77,11 @@ def test_other_node_is_rejected():
 def test_waiter_is_woken_by_changed_snapshot():
     store = PodSnapshotStore()
     results = []
-    waiter = Thread(target=lambda: results.append(store.wait_for_change(0)))
+    waiter = Thread(
+        target=lambda: results.append(
+            store.wait_for_change(0, timeout=10)
+        )
+    )
     waiter.start()
 
     store.replace(request(pods=(pod(),)))
@@ -85,6 +89,15 @@ def test_waiter_is_woken_by_changed_snapshot():
 
     assert not waiter.is_alive()
     assert results[0].target_revision == 1
+
+
+def test_wait_for_change_returns_current_snapshot_after_timeout():
+    store = PodSnapshotStore()
+    current = store.replace(request(pods=(pod(),)))
+
+    result = store.wait_for_change(current.target_revision, timeout=0.01)
+
+    assert result == current
 
 
 def test_close_wakes_waiter_with_none():

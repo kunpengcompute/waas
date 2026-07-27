@@ -34,6 +34,13 @@ def _get_args():
     parser = argparse.ArgumentParser(description="waasagent")
     parser.add_argument("-i", "--interval", metavar="INTERVAL", type=float,
         default=1, help="Sample Interval in second, default 1s")
+    parser.add_argument(
+        "--cycle-interval",
+        metavar="INTERVAL",
+        type=float,
+        default=10,
+        help="Delay between sampling cycles in seconds, default 10s",
+    )
     parser.add_argument("-o", "--output", metavar="OUTPUT", type=str,
         default="", help="Output file path, default ./data.csv")
     parser.add_argument("-m", "--maxrows", metavar="MAXROWS", type=int,
@@ -69,6 +76,7 @@ def _create_worker(
     store,
     stop_event,
     interval,
+    cycle_interval,
     processor,
     messenger,
     recorder,
@@ -79,6 +87,7 @@ def _create_worker(
         stop_event=stop_event,
         counter_factory=_create_counter,
         interval=interval,
+        cycle_interval=cycle_interval,
         processor=processor,
         messenger=messenger,
         recorder=recorder,
@@ -119,6 +128,7 @@ def main():
         store=store,
         stop_event=stop_event,
         interval=interval,
+        cycle_interval=args.cycle_interval,
         processor=processor,
         messenger=messenger,
         recorder=recorder,

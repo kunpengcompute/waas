@@ -18,6 +18,7 @@ class SamplingWorker:
         recorder=None,
         retry_interval: float = 1.0,
         interference_store=None,
+        cycle_interval: float = 10.0,
     ):
         self.store = store
         self.stop_event = stop_event
@@ -28,6 +29,7 @@ class SamplingWorker:
         self.recorder = recorder
         self.retry_interval = retry_interval
         self.interference_store = interference_store
+        self.cycle_interval = cycle_interval
 
     @staticmethod
     def _close_counter(counter) -> None:
@@ -158,6 +160,15 @@ class SamplingWorker:
                         tuple(reason_codes),
                         datetime.now(timezone.utc),
                     )
+                if not counters:
+                    self.stop_event.wait(self.retry_interval)
+                    continue
+                next_snapshot = self.store.wait_for_change(
+                    active_revision,
+                    timeout=self.cycle_interval,
+                )
+                if next_snapshot is None:
+                    return
         finally:
             for counter in counters.values():
                 self._close_counter(counter)

@@ -24,6 +24,7 @@ def test_http_cli_defaults(monkeypatch):
 
     assert args.http_host == "127.0.0.1"
     assert args.http_port == 18080
+    assert args.cycle_interval == 10
 
 
 def test_counter_factory_passes_snapshot_paths(monkeypatch):
@@ -56,6 +57,7 @@ def test_create_worker_passes_interference_store(monkeypatch):
         store=object(),
         stop_event=object(),
         interval=1,
+        cycle_interval=10,
         processor=object(),
         messenger=object(),
         recorder=None,
@@ -64,6 +66,7 @@ def test_create_worker_passes_interference_store(monkeypatch):
 
     assert isinstance(worker, FakeSamplingWorker)
     assert captured["interference_store"] is result_store
+    assert captured["cycle_interval"] == 10
     assert "handler" not in captured
 
 

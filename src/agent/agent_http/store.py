@@ -71,14 +71,19 @@ class PodSnapshotStore:
         with self._condition:
             return self._target_revision
 
-    def wait_for_change(self, after_revision: int) -> PodSnapshot | None:
+    def wait_for_change(
+        self,
+        after_revision: int,
+        timeout: float | None = None,
+    ) -> PodSnapshot | None:
         with self._condition:
             self._condition.wait_for(
                 lambda: self._closed
                 or (
                     self._snapshot is not None
                     and self._snapshot.target_revision != after_revision
-                )
+                ),
+                timeout=timeout,
             )
             if self._closed:
                 return None
