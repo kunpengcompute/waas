@@ -3,11 +3,10 @@ from datetime import datetime
 import pytest
 from pydantic import ValidationError
 
+from agent_http import models
 from agent_http.models import (
-    InterferenceReason,
     InterferenceResponse,
     OnlinePodsRequest,
-    controller_reason_from_code,
 )
 
 
@@ -57,23 +56,23 @@ def test_empty_interference_response_has_controller_shape():
     assert response.model_dump(mode="json") == {
         "version": "v1",
         "node_name": "node-a",
-        "reasons": [],
+        "reason_codes": [],
     }
 
 
 @pytest.mark.parametrize(
     ("reason_code", "expected"),
     [
-        (0, InterferenceReason.NONE),
-        (1, InterferenceReason.CPU),
-        (2, InterferenceReason.CPU),
-        (3, InterferenceReason.L3),
-        (4, InterferenceReason.MB),
-        (5, InterferenceReason.CPU),
-        (6, InterferenceReason.CPU),
+        (0, "base"),
+        (1, "compute"),
+        (2, "l2"),
+        (3, "l3"),
+        (4, "membw"),
+        (5, "tlb"),
+        (6, "frontend"),
         (-1, None),
         (7, None),
     ],
 )
-def test_controller_reason_from_code(reason_code, expected):
-    assert controller_reason_from_code(reason_code) is expected
+def test_raw_reason_name_from_code(reason_code, expected):
+    assert models.raw_reason_name_from_code(reason_code) == expected

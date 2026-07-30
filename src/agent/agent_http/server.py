@@ -4,20 +4,12 @@ from fastapi import FastAPI, HTTPException, Query
 
 from agent_http.interference_store import InterferenceResultStore
 from agent_http.models import (
-    InterferenceReason,
     InterferenceResponse,
     OnlinePodsRequest,
     OnlinePodsResponse,
-    controller_reason_from_code,
+    raw_reason_name_from_code,
 )
 from agent_http.store import NodeConflictError, PodSnapshotStore
-
-
-_ACTIVE_INTERFERENCE_REASON_ORDER = (
-    InterferenceReason.CPU,
-    InterferenceReason.MB,
-    InterferenceReason.L3,
-)
 
 
 def create_app(
@@ -75,32 +67,25 @@ def create_app(
         if result is None:
             response = InterferenceResponse.empty(normalized_node_name)
             logging.info(
-                "return interference result: node=%s reasons=[] source=no_result",
+                "return interference result: node=%s reason_codes=[] "
+                "raw_reasons=[] source=no_result",
                 normalized_node_name,
             )
             return response
-        mapped_reasons = {
-            reason
+        raw_reasons = [
+            raw_reason_name_from_code(reason_code)
             for reason_code in result.reason_codes
-            if (reason := controller_reason_from_code(reason_code)) is not None
-        }
-        reasons = tuple(
-            reason
-            for reason in _ACTIVE_INTERFERENCE_REASON_ORDER
-            if reason in mapped_reasons
-        )
-        if not reasons and InterferenceReason.NONE in mapped_reasons:
-            reasons = (InterferenceReason.NONE,)
+        ]
         response = InterferenceResponse(
             node_name=normalized_node_name,
-            reasons=reasons,
+            reason_codes=result.reason_codes,
         )
         logging.info(
-            "return interference result: node=%s reason_codes=%s reasons=%s "
-            "timestamp=%s",
+            "return interference result: node=%s reason_codes=%s "
+            "raw_reasons=%s timestamp=%s",
             normalized_node_name,
             result.reason_codes,
-            [reason.value for reason in response.reasons],
+            raw_reasons,
             result.timestamp.isoformat(),
         )
         return response

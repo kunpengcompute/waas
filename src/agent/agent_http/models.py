@@ -1,5 +1,4 @@
 from datetime import datetime
-from enum import Enum
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -31,36 +30,33 @@ class OnlinePodsResponse(StrictModel):
     message: str | None = None
 
 
-class InterferenceReason(str, Enum):
-    NONE = "none"
-    L3 = "l3"
-    MB = "mb"
-    CPU = "cpu"
+_RAW_REASON_NAMES = (
+    "base",
+    "compute",
+    "l2",
+    "l3",
+    "membw",
+    "tlb",
+    "frontend",
+)
 
 
-_CONTROLLER_REASON_BY_CODE = {
-    0: InterferenceReason.NONE,
-    1: InterferenceReason.CPU,
-    2: InterferenceReason.CPU,
-    3: InterferenceReason.L3,
-    4: InterferenceReason.MB,
-    5: InterferenceReason.CPU,
-    6: InterferenceReason.CPU,
-}
-
-
-def controller_reason_from_code(reason_code: int) -> InterferenceReason | None:
-    return _CONTROLLER_REASON_BY_CODE.get(reason_code)
+def raw_reason_name_from_code(reason_code: int) -> str | None:
+    if type(reason_code) is not int or reason_code not in range(
+        len(_RAW_REASON_NAMES)
+    ):
+        return None
+    return _RAW_REASON_NAMES[reason_code]
 
 
 class InterferenceResponse(StrictModel):
     version: str = "v1"
     node_name: str = Field(min_length=1)
-    reasons: tuple[InterferenceReason, ...]
+    reason_codes: tuple[int, ...]
 
     @classmethod
     def empty(cls, node_name: str) -> "InterferenceResponse":
         return cls(
             node_name=node_name,
-            reasons=(),
+            reason_codes=(),
         )

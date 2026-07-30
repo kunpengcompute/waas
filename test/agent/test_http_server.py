@@ -148,7 +148,7 @@ def test_interference_is_empty_before_analysis_exists():
     assert response.json() == {
         "version": "v1",
         "node_name": "node-a",
-        "reasons": [],
+        "reason_codes": [],
     }
 
 
@@ -164,12 +164,13 @@ def test_interference_logs_empty_when_analysis_does_not_exist(caplog):
 
     assert response.status_code == 200
     assert (
-        "return interference result: node=node-a reasons=[] source=no_result"
+        "return interference result: node=node-a reason_codes=[] "
+        "raw_reasons=[] source=no_result"
         in caplog.messages
     )
 
 
-def test_interference_returns_stored_mapped_reasons_repeatedly():
+def test_interference_returns_stored_raw_reason_codes_repeatedly():
     results = InterferenceResultStore()
     results.replace(
         "node-a",
@@ -195,13 +196,13 @@ def test_interference_returns_stored_mapped_reasons_repeatedly():
     assert first.json() == {
         "version": "v1",
         "node_name": "node-a",
-        "reasons": ["cpu", "mb", "l3"],
+        "reason_codes": [3, 1, 4, 2, 0],
     }
     assert second.status_code == 200
     assert second.json() == first.json()
 
 
-def test_interference_returns_none_when_all_results_are_base():
+def test_interference_returns_raw_base_reason():
     results = InterferenceResultStore()
     results.replace(
         "node-a",
@@ -220,7 +221,7 @@ def test_interference_returns_none_when_all_results_are_base():
     assert response.json() == {
         "version": "v1",
         "node_name": "node-a",
-        "reasons": ["none"],
+        "reason_codes": [0],
     }
 
 
@@ -243,7 +244,7 @@ def test_interference_logs_stored_reasons(caplog):
     assert response.status_code == 200
     assert (
         "return interference result: node=node-a reason_codes=(4, 3) "
-        "reasons=['mb', 'l3'] "
+        "raw_reasons=['membw', 'l3'] "
         "timestamp=2026-07-22T10:30:00+00:00"
         in caplog.messages
     )
@@ -268,7 +269,7 @@ def test_interference_returns_unknown_for_another_node():
     assert response.json() == {
         "version": "v1",
         "node_name": "node-b",
-        "reasons": [],
+        "reason_codes": [],
     }
 
 
