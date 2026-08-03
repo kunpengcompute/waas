@@ -25,6 +25,49 @@ def test_http_cli_defaults(monkeypatch):
     assert args.http_host == "127.0.0.1"
     assert args.http_port == 18080
     assert args.cycle_interval == 10
+    assert args.analysis_mode == "bmc"
+    assert args.model_path.endswith("model/rf_spec.pkl")
+
+
+@pytest.mark.parametrize(
+    ("mode", "processor_name", "messenger_name"),
+    [
+        ("bmc", "numa_reduction", "bmc"),
+        ("local", "cgroup_reduction", "local:/tmp/model.pkl"),
+    ],
+)
+def test_create_analysis_pipeline_selects_mode(
+    monkeypatch,
+    mode,
+    processor_name,
+    messenger_name,
+):
+    main = load_main(monkeypatch)
+
+    class FakeProcessor:
+        def __init__(self):
+            self.registered = []
+
+        def add_porcesser(self, name, layers):
+            self.registered.append((name, layers))
+
+    monkeypatch.setattr(main, "DataProcessor", FakeProcessor)
+    monkeypatch.setattr(main, "NumaReduction", lambda: "numa-layer")
+    monkeypatch.setattr(main, "CgroupReduction", lambda: "cgroup-layer")
+    monkeypatch.setattr(main, "IpmiMessenger", lambda: "bmc")
+    monkeypatch.setattr(
+        main,
+        "LocalModelMessenger",
+        lambda path: f"local:{path}",
+    )
+
+    processor, messenger = main._create_analysis_pipeline(
+        mode,
+        "/tmp/model.pkl",
+    )
+
+    assert processor.registered[0][0] == processor_name
+    assert messenger == messenger_name
 
 
 def test_counter_factory_passes_snapshot_paths(monkeypatch):

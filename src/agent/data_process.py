@@ -190,40 +190,15 @@ class DataProcessor:
     def aggregate(self, data):
         aggregated_data = {}
 
-        # 第一层：遍历每个 cgroup 路径
-        for cgroup_path in data.keys():
-            aggregated_data[cgroup_path] = {}
-            core_dict = data[cgroup_path]
-
-            # 第二层：遍历每个 core
-            for core_id, metric_dict_container in core_dict.items():
-                # 提取当前核心所有指标的 count 值
-                core_metrics = {}
-
-                for metric_name, metric_dict in metric_dict_container.items():
-                    if isinstance(metric_dict, dict) and "count" in metric_dict:
-                        core_metrics[metric_name] = metric_dict["count"]
-                    else:
-                        core_metrics[metric_name] = metric_dict
-
-                # 计算该核心的特征
-                feature_result = {}
-
-                for feat_name, calc_func in self.features.items():
-                    try:
-                        feature_result[feat_name] = calc_func(core_metrics)
-                    except KeyError as e:
-                        logging.warning(
-                            f"核心 {core_id} 缺失事件 {e}"
-                        )
-                        feature_result[feat_name] = 0
-                    except Exception as e:
-                        logging.warning(
-                            f"核心 {core_id} 特征计算异常：{e}"
-                        )
-                        feature_result[feat_name] = 0
-
-                aggregated_data[cgroup_path][core_id] = feature_result
+        for core_id, raw_metrics in data.items():
+            core_metrics = {
+                metric_name: metric["count"]
+                for metric_name, metric in raw_metrics.items()
+            }
+            aggregated_data[core_id] = {
+                feature_name: calculator(core_metrics)
+                for feature_name, calculator in self.features.items()
+            }
 
         return aggregated_data
 

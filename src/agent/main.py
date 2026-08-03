@@ -15,8 +15,11 @@ from agent_http.server import create_app
 from agent_http.store import PodSnapshotStore
 from sample import PerfCount
 from data_process import DataProcessor
+from layers.cgroup_reduction import CgroupReduction
 from layers.numa_reduction import NumaReduction
-from messengers.ipmi_messenger import IpmiMessenger as Messenger
+from messengers.ipmi_messenger import IpmiMessenger
+from messengers.local_model_messenger import LocalModelMessenger
+from model.model_infer import DEFAULT_MODEL_PATH
 from data_recorder import DataRecorder
 from http_server_runner import HttpServerRunner
 from sampling_worker import SamplingWorker
@@ -40,6 +43,17 @@ def _get_args():
         type=float,
         default=10,
         help="Delay between sampling cycles in seconds, default 10s",
+    )
+    parser.add_argument(
+        "--analysis-mode",
+        choices=("bmc", "local"),
+        default="bmc",
+        help="Interference analysis mode, default bmc",
+    )
+    parser.add_argument(
+        "--model-path",
+        default=str(DEFAULT_MODEL_PATH),
+        help="Local interference model path",
     )
     parser.add_argument("-o", "--output", metavar="OUTPUT", type=str,
         default="", help="Output file path, default ./data.csv")
@@ -70,6 +84,22 @@ def _get_interval(interval):
 
 def _create_counter(cgroup_paths):
     return PerfCount(cgroup_paths=cgroup_paths)
+
+
+def _create_analysis_pipeline(analysis_mode, model_path):
+    processor = DataProcessor()
+    if analysis_mode == "bmc":
+        processor.add_porcesser("numa_reduction", [NumaReduction()])
+        messenger = IpmiMessenger()
+    elif analysis_mode == "local":
+        processor.add_porcesser(
+            "cgroup_reduction",
+            [CgroupReduction()],
+        )
+        messenger = LocalModelMessenger(model_path)
+    else:
+        raise ValueError(f"unsupported analysis mode: {analysis_mode}")
+    return processor, messenger
 
 
 def _create_worker(
@@ -110,12 +140,10 @@ def main():
     args = _get_args()
     interval = _get_interval(args.interval)
 
-    processor = DataProcessor()
-
-    # 按numa聚合特征
-    processor.add_porcesser("numa_reduction", [NumaReduction()])
-
-    messenger = Messenger()
+    processor, messenger = _create_analysis_pipeline(
+        args.analysis_mode,
+        args.model_path,
+    )
 
     recorder = None
     if args.output:
