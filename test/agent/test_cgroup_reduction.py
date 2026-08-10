@@ -1,5 +1,3 @@
-import pytest
-
 from layers.cgroup_reduction import CgroupReduction
 
 
@@ -17,10 +15,15 @@ def test_cgroup_reduction_averages_active_cpu_features():
     }
 
 
-def test_cgroup_reduction_rejects_sample_without_active_cpu():
+def test_cgroup_reduction_uses_first_cpu_without_active_cpu(caplog):
     data = {
         0: {"INST_RETIRED": 0, "l3.mpi": 0.0},
+        1: {"INST_RETIRED": 0, "l3.mpi": 1.0},
     }
 
-    with pytest.raises(ValueError, match="no active CPU metrics"):
-        CgroupReduction().process(data)
+    result = CgroupReduction().process(data)
+
+    assert result == {
+        0: {"INST_RETIRED": 0, "l3.mpi": 0.0},
+    }
+    assert "no active CPU metrics" in caplog.text

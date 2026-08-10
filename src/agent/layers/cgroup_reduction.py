@@ -1,15 +1,23 @@
+import logging
+
 from data_process import Layer
 
 
 class CgroupReduction(Layer):
     def process(self, data):
+        if not data:
+            return data
+
         active_cpu_metrics = [
             metrics
             for metrics in data.values()
             if metrics.get("INST_RETIRED", 0) != 0
         ]
         if not active_cpu_metrics:
-            raise ValueError("no active CPU metrics for local inference")
+            logging.warning(
+                "no active CPU metrics; use the first CPU for local inference"
+            )
+            return {0: next(iter(data.values())).copy()}
 
         feature_names = active_cpu_metrics[0].keys()
         averaged_features = {
