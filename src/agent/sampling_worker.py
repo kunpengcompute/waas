@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from threading import Event
 from typing import Callable
 
+from agent_http.models import raw_reason_name_from_code
 from agent_http.store import PodSnapshotStore
 
 
@@ -155,10 +156,21 @@ class SamplingWorker:
                 if self.store.current_revision() != active_revision:
                     continue
                 if self.interference_store is not None:
-                    self.interference_store.replace(
+                    result = self.interference_store.replace(
                         snapshot.node_name,
                         tuple(reason_codes),
                         datetime.now(timezone.utc),
+                    )
+                    logging.info(
+                        "interference analysis completed: node=%s "
+                        "reason_codes=%s raw_reasons=%s timestamp=%s",
+                        result.node_name,
+                        result.reason_codes,
+                        tuple(
+                            raw_reason_name_from_code(reason_code)
+                            for reason_code in result.reason_codes
+                        ),
+                        result.timestamp.isoformat(),
                     )
                 if not counters:
                     self.stop_event.wait(self.retry_interval)

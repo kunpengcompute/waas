@@ -167,6 +167,7 @@ def main():
         host=args.http_host,
         port=args.http_port,
         log_level="info",
+        access_log=False,
     )
     http_runner = HttpServerRunner(
         server=uvicorn.Server(config),

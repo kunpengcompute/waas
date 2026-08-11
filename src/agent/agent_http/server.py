@@ -31,14 +31,6 @@ def create_app(
             raise HTTPException(status_code=409, detail=str(error)) from error
         except ValueError as error:
             raise HTTPException(status_code=400, detail=str(error)) from error
-        logging.info(
-            "received online pod snapshot: node=%s timestamp=%s "
-            "pod_count=%d revision=%d",
-            snapshot.node_name,
-            snapshot.timestamp.isoformat(),
-            len(snapshot.pods),
-            snapshot.target_revision,
-        )
         for pod in snapshot.pods:
             logging.info(
                 "online pod: namespace=%s name=%s uid=%s cgroup_path=%s",

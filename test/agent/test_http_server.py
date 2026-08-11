@@ -66,7 +66,7 @@ def test_publish_accepts_empty_snapshot():
     assert response.json()["accepted"] is True
 
 
-def test_publish_logs_accepted_snapshot_and_each_pod(caplog):
+def test_publish_logs_each_pod(caplog):
     caplog.set_level(logging.INFO)
 
     response = request(
@@ -82,11 +82,6 @@ def test_publish_logs_accepted_snapshot_and_each_pod(caplog):
     )
 
     assert response.status_code == 200
-    assert (
-        "received online pod snapshot: node=node-a "
-        "timestamp=2026-07-20T10:30:00+08:00 pod_count=2 revision=1"
-        in caplog.messages
-    )
     assert (
         "online pod: namespace=default name=online-a uid=uid-a "
         "cgroup_path=kubepods.slice/pod-a.slice"
