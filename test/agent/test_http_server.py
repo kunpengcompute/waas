@@ -27,9 +27,9 @@ def pod(uid="uid-a", path="kubepods.slice/pod-a.slice"):
     }
 
 
-def request(app, method, path, **kwargs):
+def request(asgi_app, method, path, **kwargs):
     async def send():
-        transport = ASGITransport(app=app)
+        transport = ASGITransport(app=asgi_app)
         async with AsyncClient(
             transport=transport,
             base_url="http://testserver",

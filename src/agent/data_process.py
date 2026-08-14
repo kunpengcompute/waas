@@ -86,22 +86,6 @@ class DataProcessor:
             "L2D_CACHE_REFILL",
             "INST_RETIRED",
         ),
-        # "voluntary_csw.ratio": (
-        #     _cpy("voluntary_csw")
-        #     / _add("voluntary_csw", "involuntary_csw")
-        # ),
-        # "voluntary_csw/M-cycles": (
-        #     _div("voluntary_csw", "CPU_CYCLES")
-        #     * 10 ** 6
-        # ),
-        # "tcp_recv_packets/M-instrs": (
-        #     _div("TCP_RECV_PACKETS", "instructions_retired")
-        #     * 10 ** 6
-        # ),
-        # "tcp_send_bytes/M-instrs": (
-        #     _div("TCP_SEND_BYTES", "instructions_retired")
-        #     * 10 ** 6
-        # ),
         "tlb2i.mpi": _div(
             "L2I_TLB_REFILL",
             "INST_RETIRED",
