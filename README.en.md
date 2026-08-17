@@ -45,40 +45,6 @@ systemctl status waasagent
 ```
 若回显中显示服务状态为`Active: active(running)`，则表示启动成功。
 
-## Controller HTTP 对接
-
-安装 Python 依赖：
-
-```bash
-python3 -m pip install -r requirements.txt
-```
-
-启动 WAAS Agent。HTTP 服务默认监听回环地址 `127.0.0.1:18080`；在 Controller 上报第一份非空在线 Pod 快照前，PMU 采集保持空闲：
-
-```bash
-python3 src/agent/main.py \
-  --http-host 127.0.0.1 \
-  --http-port 18080 \
-  --interval 1
-```
-
-Controller 使用以下 Agent 地址：
-
-```text
---dynamic-agent-addr=http://127.0.0.1:18080
-```
-
-`POST /v1/online-pods` 将请求中的 Pod cgroup 列表作为最新完整采集目标；空 Pod 列表会暂停 PMU 采集。
-
-当前真实 BMC 干扰分类解析尚未接入。Agent 在每轮成功采集和 BMC 交互后随机生成一个 `0～6` 的内部原因编号，并保存为最近结果；`GET /v1/interference` 将其映射为 Controller 支持的 `unknown/l3/mb/cpu`。同一采集周期内重复查询不会重新生成原因。
-
-### 线程模型
-
-- Agent 主线程运行原有的 PMU 采集、数据处理和 IPMI/BMC 循环。
-- FastAPI/Uvicorn 运行在独立的 HTTP 辅助线程中。
-- `PodSnapshotStore` 在线程之间传递 Controller 下发的 Pod cgroup 完整快照。
-- HTTP 服务启动失败或运行中意外退出时，Agent 主采集循环会停止，整个进程退出。
-
 # 贡献指南
 如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
 
