@@ -106,12 +106,8 @@ EVENT_NAME_MAP = {
 
 
 class PerfCount:
-    def __init__(self, cpu_list=None):
-        if cpu_list:
-            self.cpu_list = cpu_list
-        else:
-            self.cpu_list = []
-
+    def __init__(self, cgroup_paths=None):
+        self.cgroup_paths = list(cgroup_paths or [])
         self.events = []
 
         self.data = {}
@@ -157,13 +153,21 @@ class PerfCount:
             kperf.EvtAttr(evt['group'], 0, evt['excludeUser'], evt['excludeKernel']) for evt in self.events
         ]
 
-        pmu_attr = kperf.PmuAttr(evtList=evt_list, cpuList=self.cpu_list, evtAttr=evt_attr_list)
+        pmu_attr = kperf.PmuAttr(
+            evtList=evt_list,
+            cgroupNameList=self.cgroup_paths,
+            evtAttr=evt_attr_list,
+        )
 
         pd = kperf.open(kperf.PmuTaskType.COUNTING, pmu_attr)
         if pd == -1:
-            print(kperf.error())
             raise ValueError(kperf.error())
         return pd
+
+    def close(self):
+        if self.pd:
+            kperf.close(self.pd)
+            self.pd = 0
 
     def count(self, count_time):
         kperf.enable(self.pd)
@@ -178,8 +182,11 @@ class PerfCount:
     def get_data(self):
         result = {}
         for data in self.results.iter:
-            if not result.get(data.cpu):
-                result[data.cpu] = {}
+            if self.cgroup_paths:
+                cgroup_data = result.setdefault(data.cgroupName, {})
+            else:
+                cgroup_data = result
+            cpu_data = cgroup_data.setdefault(data.cpu, {})
 
             if data.evt.startswith('r'):
                 evt_name = EVENT_NAME_MAP[data.evt]
@@ -191,9 +198,10 @@ class PerfCount:
 
             # 原始指标均用大写，以示区分
             evt_name = evt_name.upper()
-            result[data.cpu][evt_name] = {}
-            result[data.cpu][evt_name]['count'] = data.count
-            result[data.cpu][evt_name]['countPercent'] = data.countPercent
+            cpu_data[evt_name] = {
+                'count': data.count,
+                'countPercent': data.countPercent,
+            }
 
         return {
             "start_time": self.start_time,

@@ -47,7 +47,7 @@ class DataRecorder:
 
     def _extract_fieldnames(self, data: Dict[str, Any]) -> List[str]:
         """从数据中提取所有字段名"""
-        fieldnames = ['start_time', 'stop_time']
+        fieldnames = ['start_time', 'stop_time', 'cgroup_path']
 
         core_data = data.get('all', {})
         for core_id, metrics in core_data.items():
@@ -77,7 +77,8 @@ class DataRecorder:
         """插入一行数据"""
         flattened_data = {
             'start_time': str(data.get('start_time', '')),
-            'stop_time': str(data.get('stop_time', ''))
+            'stop_time': str(data.get('stop_time', '')),
+            'cgroup_path': str(data.get('cgroup_path', '')),
         }
 
         core_data = data.get('all', {})

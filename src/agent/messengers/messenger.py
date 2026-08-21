@@ -30,3 +30,6 @@ class Messenger(ABC):
     @abstractmethod
     def get_advice(self):
         pass
+
+    def get_interference_reason(self) -> int:
+        raise NotImplementedError
