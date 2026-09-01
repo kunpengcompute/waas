@@ -21,9 +21,9 @@ def test_payload_to_input_uses_training_feature_order():
         {
             "cpu.ipc": 2.0,
             "l3.mpi": 1.0,
-            "l3.mr": 4.0,
-            "sve.ratio": 3.0,
-            "l1d.refer/l1i.refer": 5.0,
+            "l3.mr": 3.0,
+            "l1d.refer/l1i.refer": 4.0,
+            "l2i.mpi": 5.0,
         }
     )
 
