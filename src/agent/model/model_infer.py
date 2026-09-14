@@ -16,9 +16,9 @@ LABEL_MAP = {
 SELECTED_FEATURES = (
     "l3.mpi",
     "cpu.ipc",
-    "sve.ratio",
     "l3.mr",
     "l1d.refer/l1i.refer",
+    "l2i.mpi",
 )
 
 DEFAULT_MODEL_PATH = Path(__file__).with_name("rf_spec.pkl")
