@@ -516,6 +516,36 @@ def test_successful_bmc_cycle_analyzes_each_cgroup_and_stores_reasons():
     assert results.current("node-a").reason_codes == (3, 4)
 
 
+def test_result_resolver_can_adjust_model_reason():
+    store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
+    store.replace(request(pods=(pod(),)))
+    results = InterferenceResultStore()
+
+    class ReasonMessenger(FakeMessenger):
+        def get_interference_reason(self):
+            return 3
+
+    worker = SamplingWorker(
+        store=store,
+        stop_event=stop,
+        counter_factory=lambda paths: FakeCounter(paths, created, sampled),
+        interval=0,
+        processor=FakeProcessor(),
+        messenger=ReasonMessenger(),
+        interference_store=results,
+        result_resolver=lambda reason_codes: (5,),
+        retry_interval=0.01,
+    )
+    thread = Thread(target=worker.run)
+    thread.start()
+    wait_until(lambda: results.current("node-a") is not None)
+    stop.set()
+    store.close()
+    thread.join(timeout=1)
+
+    assert results.current("node-a").reason_codes == (5,)
+
+
 def test_partial_bmc_failure_keeps_successful_cgroup_reason():
     store, stop, created, sampled = PodSnapshotStore(), Event(), [], []
     store.replace(

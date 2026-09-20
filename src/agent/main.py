@@ -21,6 +21,7 @@ from messengers.ipmi_messenger import IpmiMessenger
 from messengers.local_model_messenger import LocalModelMessenger
 from model.model_infer import DEFAULT_MODEL_PATH
 from data_recorder import DataRecorder
+from interference import AnalysisRuntime
 from http_server_runner import HttpServerRunner
 from sampling_worker import SamplingWorker
 
@@ -111,6 +112,7 @@ def _create_worker(
     messenger,
     recorder,
     interference_store,
+    result_resolver,
 ):
     return SamplingWorker(
         store=store,
@@ -122,17 +124,28 @@ def _create_worker(
         messenger=messenger,
         recorder=recorder,
         interference_store=interference_store,
+        result_resolver=result_resolver,
     )
 
 
-def _run_agent(worker, http_runner, store, stop_event):
+def _run_agent(
+    worker,
+    http_runner,
+    store,
+    stop_event,
+    analysis_runtime=None,
+):
     try:
+        if analysis_runtime is not None:
+            analysis_runtime.start()
         http_runner.start()
         worker.run()
         http_runner.raise_if_failed()
     finally:
         stop_event.set()
         store.close()
+        if analysis_runtime is not None:
+            analysis_runtime.stop()
         http_runner.stop()
 
 
@@ -151,6 +164,11 @@ def main():
 
     store = PodSnapshotStore()
     interference_store = InterferenceResultStore()
+    analysis_runtime = (
+        AnalysisRuntime()
+        if args.analysis_mode == "local"
+        else None
+    )
     stop_event = threading.Event()
     worker = _create_worker(
         store=store,
@@ -161,6 +179,11 @@ def main():
         messenger=messenger,
         recorder=recorder,
         interference_store=interference_store,
+        result_resolver=(
+            analysis_runtime.resolve
+            if analysis_runtime is not None
+            else None
+        ),
     )
     config = uvicorn.Config(
         create_app(store, interference_store),
@@ -174,7 +197,13 @@ def main():
         store=store,
         stop_event=stop_event,
     )
-    _run_agent(worker, http_runner, store, stop_event)
+    _run_agent(
+        worker,
+        http_runner,
+        store,
+        stop_event,
+        analysis_runtime=analysis_runtime,
+    )
 
 
 if __name__ == "__main__":

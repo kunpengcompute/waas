@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+!src/agent/interference.so
 
 # Distribution / packaging
 .Python
