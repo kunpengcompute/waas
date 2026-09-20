@@ -20,6 +20,7 @@ class SamplingWorker:
         retry_interval: float = 1.0,
         interference_store=None,
         cycle_interval: float = 10.0,
+        result_resolver=None,
     ):
         self.store = store
         self.stop_event = stop_event
@@ -31,6 +32,7 @@ class SamplingWorker:
         self.retry_interval = retry_interval
         self.interference_store = interference_store
         self.cycle_interval = cycle_interval
+        self.result_resolver = result_resolver
 
     @staticmethod
     def _close_counter(counter) -> None:
@@ -156,9 +158,14 @@ class SamplingWorker:
                 if self.store.current_revision() != active_revision:
                     continue
                 if self.interference_store is not None:
+                    final_reason_codes = tuple(reason_codes)
+                    if self.result_resolver is not None:
+                        final_reason_codes = self.result_resolver(
+                            final_reason_codes
+                        )
                     result = self.interference_store.replace(
                         snapshot.node_name,
-                        tuple(reason_codes),
+                        final_reason_codes,
                         datetime.now(timezone.utc),
                     )
                     logging.info(

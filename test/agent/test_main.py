@@ -9,9 +9,12 @@ import pytest
 def load_main(monkeypatch):
     fake_kperf = ModuleType("kperf")
     fake_psutil = ModuleType("psutil")
+    fake_interference = ModuleType("interference")
     fake_psutil.cpu_count = lambda logical=True: 1
+    fake_interference.AnalysisRuntime = object
     monkeypatch.setitem(sys.modules, "kperf", fake_kperf)
     monkeypatch.setitem(sys.modules, "psutil", fake_psutil)
+    monkeypatch.setitem(sys.modules, "interference", fake_interference)
     sys.modules.pop("main", None)
     return importlib.import_module("main")
 
@@ -89,6 +92,7 @@ def test_create_worker_passes_interference_store(monkeypatch):
     main = load_main(monkeypatch)
     captured = {}
     result_store = object()
+    result_resolver = object()
 
     class FakeSamplingWorker:
         def __init__(self, **kwargs):
@@ -105,10 +109,12 @@ def test_create_worker_passes_interference_store(monkeypatch):
         messenger=object(),
         recorder=None,
         interference_store=result_store,
+        result_resolver=result_resolver,
     )
 
     assert isinstance(worker, FakeSamplingWorker)
     assert captured["interference_store"] is result_store
+    assert captured["result_resolver"] is result_resolver
     assert captured["cycle_interval"] == 10
     assert "handler" not in captured
 
@@ -135,16 +141,31 @@ def test_run_agent_runs_sampling_on_caller_thread_and_cleans_up(monkeypatch):
         def close(self):
             calls.append(("store-close", current_thread()))
 
+    class FakeAnalysisRuntime:
+        def start(self):
+            calls.append(("runtime-start", current_thread()))
+
+        def stop(self):
+            calls.append(("runtime-stop", current_thread()))
+
     stop_event = Event()
     caller_thread = current_thread()
 
-    main._run_agent(FakeWorker(), FakeHttpRunner(), FakeStore(), stop_event)
+    main._run_agent(
+        FakeWorker(),
+        FakeHttpRunner(),
+        FakeStore(),
+        stop_event,
+        analysis_runtime=FakeAnalysisRuntime(),
+    )
 
     assert calls == [
+        ("runtime-start", caller_thread),
         ("http-start", caller_thread),
         ("worker", caller_thread),
         ("http-check", caller_thread),
         ("store-close", caller_thread),
+        ("runtime-stop", caller_thread),
         ("http-stop", caller_thread),
     ]
     assert stop_event.is_set()
