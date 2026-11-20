@@ -1,4 +1,6 @@
-# 用户指南<a name="ZH-CN_TOPIC_0000002550231305"></a>
+# 用户指南
+
+本文档介绍WAAS Booster的命令行操作与K8s Pod操作，涵盖服务启停、Pod创建与销毁、目录文件权限及日志管理，适用于使用WAAS Booster的用户。
 
 ## 工具使用<a name="ZH-CN_TOPIC_0000002518228422"></a>
 
@@ -10,19 +12,19 @@ WAAS Booster支持的命令行如下所示。
 
 - 启动WAAS Booster。
 
-    ```
+    ```bash
     systemctl start waasbooster
     ```
 
 - 关闭WAAS Booster。
 
-    ```
+    ```bash
     systemctl stop waasbooster
     ```
 
 - 查看WAAS Booster对容器的调整动作。
 
-    ```
+    bash
     tail -f /var/log/waasbooster.log
     ```
 
@@ -40,13 +42,13 @@ WAAS Booster支持的命令行如下所示。
 
 - 创建WAAS Booster Pod。
 
-    ```
+    ```bash
     kubectl apply -f waasbooster.yaml
     ```
 
 - 销毁WAAS Booster Pod。
 
-    ```
+    ```bash
     kubectl delete -f waasbooster.yaml
     ```
 
@@ -57,19 +59,19 @@ WAAS Booster支持的命令行如下所示。
     - 若持续监控，可以进入容器查看日志。
         1. 进入容器。
 
-            ```
+            ```bash
             kubectl exec -it waasbooster-daemon-rhwdz bash
             ```
 
         2. 查看日志。
 
-            ```
+            ```bash
             tail -f /var/log/waasbooster.log
             ```
 
     - 若临时查看，则可以通过K8s日志查看。
 
-        ```
+        ```bash
         kubectl logs waasbooster-daemon-rhwdz
         ```
 
@@ -111,5 +113,8 @@ WAAS Booster支持的命令行如下所示。
 - 运行日志输出到操作系统日志文件中。
 - WAAS Booster的日志输出文件为“/var/log/waasbooster.log”。
 
+## 修订记录
 
-
+| 文档版本 | 发布日期 | 修改说明 |
+|--|--|--|
+|01 | 2025-12-30 | 第一次正式发布。 |

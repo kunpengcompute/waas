@@ -1,14 +1,6 @@
-# WAAS介绍<a name="ZH-CN_TOPIC_0000002518588852"></a>
+# WAAS介绍
 
-
-
-
-
-
-
-
-
-
+本文档介绍WAAS Booster虚拟化负载感知加速系统容器场景负载动态调度工具，涵盖项目介绍、目录结构、版本说明、约束与限制、环境部署与快速入门指引，适用于在鲲鹏920系列处理器上对容器CPU配额进行负载动态调优的用户。
 
 ## 项目介绍<a name="ZH-CN_TOPIC_0000002549748607"></a>
 
@@ -18,18 +10,18 @@
 
 **应用场景<a name="section92245417444"></a>**
 
-应用于云计算场景，部署开源微服务，在单节点超分场景下（request < 2/3物理机core，limit \> CPU物理机core）高并发时，典型业务场景性能实现CPU配额根据业务负载变化设置，实现容器的负载使用的CPU资源动态最优。
+适用于云计算场景下部署开源微服务的业务：在单节点超分场景（request < 2/3物理机core，limit \> CPU物理机core）出现高并发时，可根据业务负载变化动态设置容器CPU配额，使容器使用的CPU资源达到动态最优。
 
 **原理描述<a name="section1211183294413"></a>**
 
 - 负载感知：通过滑动窗口和负载预测模型感知业务容器CPU负载压力。
-- 动态调优：根据PID（Proportion Integration Differentiation）算法和全局资源管理进行实时CPU资源调整和平衡。
+- 动态调优：根据PID（Proportional-Integral-Derivative）算法和全局资源管理进行实时CPU资源调整和平衡。
 
 ## 目录结构<a name="ZH-CN_TOPIC_0000002518229278"></a>
 
 WAAS Booster项目全量目录层级介绍如下：
 
-```
+```text
 ├─ build.sh                                     # 构建脚本
 ├─ Dockerfile                                   # 容器镜像构建文件（定义运行环境、依赖与启动方式）
 ├─ LICENSE                                      # 开源许可证文本
@@ -106,7 +98,7 @@ WAAS Booster的用户指南，包括详细的工具使用教程等，具体请�
 
 ## 贡献声明<a name="ZH-CN_TOPIC_0000002549869043"></a>
 
-如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[这里](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
+如果使用过程中有任何问题，或者需要反馈特性需求和bug报告，可以提交issue联系我们，具体贡献方法可参考[贡献指南](https://gitcode.com/boostkit/community/blob/master/docs/contributor/contributing.md)。
 
 ## 免责声明<a name="ZH-CN_TOPIC_0000002518389192"></a>
 
