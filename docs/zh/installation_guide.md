@@ -33,7 +33,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 |项目|版本|获取方式|
 |--|--|--|
-|OS|openEuler 20.03 LTS SP3<br>openEuler 22.03 LTS SP4|openEuler 20.03 LTS SP3：[openEuler 20.03 LTS SP3下载页面](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2020.03%20LTS%20SP3)<br>openEuler 22.03 LTS SP4：[openEuler 22.03 LTS SP4下载页面](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2022.03%20LTS%20SP4)|
+|OS|openEuler 20.03 LTS SP3<br>openEuler 22.03 LTS SP4|[openEuler 20.03 LTS SP3下载页面](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2020.03%20LTS%20SP3)<br>[openEuler 22.03 LTS SP4下载页面](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2022.03%20LTS%20SP4)|
 |Python|3.9.9或以上版本|[Python 3.9.9下载页面](https://www.python.org/downloads/release/python-399/)|
 |Miniconda3|py310_25.1.1-2-Linux-aarch64|[Miniconda3 py310_25.1.1-2-Linux-aarch64安装脚本](https://repo.anaconda.com/miniconda/Miniconda3-py310_25.1.1-2-Lniux-aarch64.sh)|
 |WAAS Booster所需依赖包|安装手册中的指定版本|通过配置Yum源和pip源方式安装|
