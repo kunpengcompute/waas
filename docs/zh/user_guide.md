@@ -24,7 +24,7 @@ WAAS Booster支持的命令行如下所示。
 
 - 查看WAAS Booster对容器的调整动作。
 
-    bash
+    ```bash
     tail -f /var/log/waasbooster.log
     ```
 

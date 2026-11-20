@@ -36,9 +36,9 @@
 
 3. 构建镜像。
 
-    1. 进入waas-waasbooster文件夹。
+    1. 进入waas文件夹。
 
-        ```bash
+        ```
         cd waas-waasbooster 
         ```
 
