@@ -39,7 +39,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 |WAAS Booster所需依赖包|安装手册中的指定版本|通过配置Yum源和pip源方式安装|
 |WAAS Booster开源代码包|1.0.0|[WAAS Booster开源代码包代码仓库](https://gitcode.com/boostkit/waas)|
 
-
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >WAAS Booster仅支持部署于业务节点。
 
@@ -120,8 +119,8 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     ![conda env list命令回显，列出各虚拟环境及其路径，用于确认waasbooster_env对应的python路径](figures/zh-cn_image_0000002518384334.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >-   如果步骤[8](#li3962559112)返回内容中waasbooster\_env对应路径不是“/usr/local/waasbooster/bin/python3”，请拷贝其内容，用于后续部署WAAS Booster后修改其配置文件内容；
-    >-   如果返回内容是“/usr/local/waasbooster/bin/python3”，则忽略修改步骤。
+    >- 如果步骤[8](#li3962559112)返回内容中waasbooster\_env对应路径不是“/usr/local/waasbooster/bin/python3”，请拷贝其内容，用于后续部署WAAS Booster后修改其配置文件内容；
+    >- 如果返回内容是“/usr/local/waasbooster/bin/python3”，则忽略修改步骤。
 
 9. 执行命令进入指定虚拟环境。
 
@@ -262,9 +261,9 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 当不再需要使用WAAS Booster时，可以卸载WAAS Booster。
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->-   当前步骤仅供需要卸载WAAS Booster时参考，不属于部署WAAS Booster的必要操作步骤。
->-   WAAS Booster默认安装路径在“/usr/local/waasbooster/”下，卸载后该路径中所有文件会被删除。
->-   卸载结束后，建议用户手动删除安装包与安装日志，日志位于“/var/log/waasbooster.log”。
+>- 当前步骤仅供需要卸载WAAS Booster时参考，不属于部署WAAS Booster的必要操作步骤。
+>- WAAS Booster默认安装路径在“/usr/local/waasbooster/”下，卸载后该路径中所有文件会被删除。
+>- 卸载结束后，建议用户手动删除安装包与安装日志，日志位于“/var/log/waasbooster.log”。
 
 1. 停止WAAS Booster。
 
@@ -283,8 +282,8 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 由于某些部署环境不支持网络连接操作，无法安装WAAS Booster所需依赖，因此本节给出不依赖环境的独立RPM包制作过程。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->-   制作该RPM包的机器环境需能访问外部网络。
->-   root用户可直接执行下述命令；普通用户执行本小节的操作时，需要在下述命令前加**sudo**提高权限。
+>- 制作该RPM包的机器环境需能访问外部网络。
+>- root用户可直接执行下述命令；普通用户执行本小节的操作时，需要在下述命令前加**sudo**提高权限。
 
 1. 安装软件运行必要依赖。
 
@@ -566,8 +565,8 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 18. 安装独立RPM包。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >-   无需安装WAAS Booster运行环境即可部署运行此安装包。
-    >-   安装此RPM包时请添加 **--nodeps**命令，否则将无法安装运行。
+    >- 无需安装WAAS Booster运行环境即可部署运行此安装包。
+    >- 安装此RPM包时请添加 **--nodeps**命令，否则将无法安装运行。
 
     ```bash
     rpm -ivh --nodeps /home/waasbooster_rpm_build/output/waasbooster-1.0.0-1.aarch64.rpm
@@ -578,8 +577,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     ```bash
     rpm -e --nodeps waasbooster
     ```
-
-
 
 ## K8s Pod部署WAAS Booster<a name="ZH-CN_TOPIC_0000002549744187"></a>
 
@@ -682,7 +679,6 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
         若回显中有如下类似镜像，则导入成功。
 
         ![ctr -n k8s.io images list回显，镜像列表中出现导入的waasbooster:1.0.0镜像，表示导入成功](figures/zh-cn_image_0000002518384336.png)
-
 
 ### 部署Pod<a name="ZH-CN_TOPIC_0000002518224410"></a>
 
