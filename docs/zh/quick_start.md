@@ -6,7 +6,6 @@
 
 虚拟化负载感知加速系统容器场景负载动态调度工具（Workload Aware Acceleration System Booster，简称WAAS Booster），主要功能是实时检测分析容器负载水平，及时响应突发高负载导致的容器CPU资源不足问题，并且通过负载感知和预测，实现全局的资源调度最优化配置。
 
-
 ## 工具安装<a name="ZH-CN_TOPIC_0000002550143105"></a>
 
 此处以K8s部署为例，服务以daemonset pod的形式，从主节点分发到各计算节点上，部署起来共分为两步：镜像构建和pod部署。
@@ -38,7 +37,7 @@
 
     1. 进入waas文件夹。
 
-        ```
+        ```bash
         cd waas-waasbooster 
         ```
 
@@ -70,7 +69,6 @@
         ```
 
         回显中若有名为waasbooster，TAG为1.0.0的镜像出现，则构建成功。
-
 
 ## 工具使用<a name="ZH-CN_TOPIC_0000002550183111"></a>
 

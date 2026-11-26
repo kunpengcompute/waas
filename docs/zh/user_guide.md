@@ -75,8 +75,6 @@ WAAS Booster支持的命令行如下所示。
         kubectl logs waasbooster-daemon-rhwdz
         ```
 
-
-
 ## 安全管理<a name="ZH-CN_TOPIC_0000002518228414"></a>
 
 ### 目录和文件权限<a name="ZH-CN_TOPIC_0000002549748175"></a>
@@ -92,7 +90,6 @@ WAAS Booster支持的命令行如下所示。
 |/var/waasbooster/|/var/waasbooster|root:root|750|WAAS Booster的数据存储路径|
 |/var/run/waasbooster_manager/|/var/run/waasbooster_manager/|root:root|644|WAAS Booster的临时文件存储路径|
 
-
 针对K8s Pod部署方式，WAAS Booster目录和文件的权限说明如[**表 2** K8s WAAS Booster Pod目录和文件的权限说明](#K8sWAASBoosterPod目录和文件的权限说明)所示。
 
 **表 2** K8s WAAS Booster Pod目录和文件的权限说明<a id="K8sWAASBoosterPod目录和文件的权限说明"></a>
@@ -102,8 +99,6 @@ WAAS Booster支持的命令行如下所示。
 |/app/|/app/|root:root|644|WAAS Booster安装目录|
 |/var/log/waasbooster.log|/var/log/waasbooster.log|root:root|640|WAAS Booster产生的日志|
 |/var/run/waasbooster_manager/|/var/run/waasbooster_manager/|root:root|644|WAAS Booster的临时文件存储路径|
-
-
 
 ### 日志管理<a name="ZH-CN_TOPIC_0000002549868175"></a>
 

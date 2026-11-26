@@ -261,6 +261,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 当不再需要使用WAAS Booster时，可以卸载WAAS Booster。
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
+>
 >- 当前步骤仅供需要卸载WAAS Booster时参考，不属于部署WAAS Booster的必要操作步骤。
 >- WAAS Booster默认安装路径在“/usr/local/waasbooster/”下，卸载后该路径中所有文件会被删除。
 >- 卸载结束后，建议用户手动删除安装包与安装日志，日志位于“/var/log/waasbooster.log”。
@@ -282,6 +283,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 由于某些部署环境不支持网络连接操作，无法安装WAAS Booster所需依赖，因此本节给出不依赖环境的独立RPM包制作过程。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
+>
 >- 制作该RPM包的机器环境需能访问外部网络。
 >- root用户可直接执行下述命令；普通用户执行本小节的操作时，需要在下述命令前加**sudo**提高权限。
 
