@@ -1,4 +1,6 @@
-# 安装指南<a name="ZH-CN_TOPIC_0000002518384328"></a>
+# 安装指南
+
+本文档介绍WAAS Booster的安装部署方法，涵盖环境要求、RPM部署与K8s Pod部署两种方式的完整操作步骤以及卸载操作，适用于需要在openEuler环境部署WAAS Booster的用户。
 
 ## 部署说明<a name="ZH-CN_TOPIC_0000002518384330"></a>
 
@@ -31,12 +33,11 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 |项目|版本|获取方式|
 |--|--|--|
-|OS|openEuler 20.03 LTS SP3<br>openEuler 22.03 LTS SP4|openEuler 20.03 LTS SP3：[获取链接](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2020.03%20LTS%20SP3)<br>openEuler 22.03 LTS SP4：[获取链接](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2022.03%20LTS%20SP4)|
-|Python|3.9.9或以上版本|[获取链接](https://www.python.org/downloads/release/python-399/)|
-|Miniconda3|py310_25.1.1-2-Linux-aarch64|[获取链接](https://repo.anaconda.com/miniconda/Miniconda3-py310_25.1.1-2-Lniux-aarch64.sh)|
+|OS|openEuler 20.03 LTS SP3<br>openEuler 22.03 LTS SP4|[openEuler 20.03 LTS SP3下载页面](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2020.03%20LTS%20SP3)<br>[openEuler 22.03 LTS SP4下载页面](https://www.openeuler.org/zh/download/archive/detail/?version=openEuler%2022.03%20LTS%20SP4)|
+|Python|3.9.9或以上版本|[Python 3.9.9下载页面](https://www.python.org/downloads/release/python-399/)|
+|Miniconda3|py310_25.1.1-2-Linux-aarch64|[Miniconda3 py310_25.1.1-2-Linux-aarch64安装脚本](https://repo.anaconda.com/miniconda/Miniconda3-py310_25.1.1-2-Linux-aarch64.sh)|
 |WAAS Booster所需依赖包|安装手册中的指定版本|通过配置Yum源和pip源方式安装|
-|WAAS Booster开源代码包|1.0.0|[获取链接](https://gitcode.com/boostkit/waas)|
-
+|WAAS Booster开源代码包|1.0.0|[WAAS Booster开源代码包代码仓库](https://gitcode.com/boostkit/waas)|
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
 >WAAS Booster仅支持部署于业务节点。
@@ -59,33 +60,33 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 2. 下载[Miniconda3安装脚本](https://repo.anaconda.com/miniconda/Miniconda3-py310_25.1.1-2-Linux-aarch64.sh)。
 3. 按默认安装Miniconda3。
 
-    ```
+    ```bash
     sh Miniconda3-py310_25.1.1-2-Linux-aarch64.sh
     ```
 
 4. 在“/etc/profile”里配置安装好的Miniconda3的二进制路径。
     1. 打开文件。
 
-        ```
+        ```bash
         vim /etc/profile
         ```
 
     2. 按“i”进入编辑模式，在文件末尾添加如下内容。
 
-        ```
+        ```txt
         export PATH=$PATH:/root/miniconda3/bin/
         ```
 
     3. 按“Esc”键退出编辑模式，输入 **:wq!**，按“Enter”键保存退出文件。
     4. 使文件生效。
 
-        ```
+        ```bash
         source /etc/profile
         ```
 
 5. 初始化conda环境。
 
-    ```
+    ```bash
     conda init
     ```
 
@@ -97,45 +98,45 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 7. 使用conda创建Python环境，例如环境命名为waasbooster\_env。
     1. 添加conda-forge channel。
 
-        ```
+        ```bash
         conda config --add channels conda-forge
         ```
 
     2. 使用conda-forge创建python环境。
 
-        ```
+        ```bash
         conda create -n waasbooster_env python=3.9.9 -c conda-forge
         ```
 
 8. <a name="li3962559112"></a>查看waasbooster\_env环境路径。
 
-    ```
+    ```bash
     conda env list
     ```
 
     回显如下图所示：
 
-    ![](figures/zh-cn_image_0000002518384334.png)
+    ![conda env list命令回显，列出各虚拟环境及其路径，用于确认waasbooster_env对应的python路径](figures/zh-cn_image_0000002518384334.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >-   如果步骤[8](#li3962559112)返回内容中waasbooster\_env对应路径不是“/usr/local/waasbooster/bin/python3”，请拷贝其内容，用于后续部署WAAS Booster后修改其配置文件内容；
-    >-   如果返回内容是“/usr/local/waasbooster/bin/python3”，则忽略修改步骤。
+    >- 如果步骤[8](#li3962559112)返回内容中waasbooster\_env对应路径不是“/usr/local/waasbooster/bin/python3”，请拷贝其内容，用于后续部署WAAS Booster后修改其配置文件内容；
+    >- 如果返回内容是“/usr/local/waasbooster/bin/python3”，则忽略修改步骤。
 
 9. 执行命令进入指定虚拟环境。
 
-    ```
+    ```bash
     conda activate waasbooster_env
     ```
 
-10. 获取WAAS Booster开源代码包waas-waasbooster.zip，获取链接请参见[操作系统和软件要求](#操作系统和软件要求)，将waas-waasbooster.zip上传至服务器自定义路径并解压。
+10. 获取WAAS Booster开源代码包waas-waasbooster.zip，获取链接请参见[**表 1** 操作系统和软件要求](#操作系统和软件要求)，将waas-waasbooster.zip上传至服务器自定义路径并解压。
 
-    ```
+    ```bash
     unzip waas-waasbooster.zip
     ```
 
 11. 执行命令安装依赖。
 
-    ```
+    ```bash
     pip3 install -r waas-waasbooster/requirements.txt
     ```
 
@@ -145,7 +146,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 1. 编译构建WAAS Booster RPM。
 
-    ```
+    ```bash
     sh waas-waasbooster/build.sh build_booster_package
     ```
 
@@ -160,18 +161,18 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >root用户可直接执行下述命令；普通用户执行本步骤的操作时，需要在下述命令前加**sudo**提高权限。
 
-    ```
+    ```bash
     rpm -ivh waasbooster-1.0.0.aarch64.rpm
     ```
 
     安装成功后回显如下图所示。
 
-    ![](figures/zh-cn_image_0000002518224418.png)
+    ![rpm -ivh安装waasbooster-1.0.0.aarch64.rpm后的回显，显示安装进度与完成提示，表示安装成功](figures/zh-cn_image_0000002518224418.png)
 
 2. 修改WAAS Booster的service文件。
     1. 查看waasbooster\_env环境路径。
 
-        ```
+        ```bash
         conda env list
         ```
 
@@ -179,7 +180,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     2. 打开“/usr/lib/systemd/system/waasbooster.service”文件。
 
-        ```
+        ```bash
         vim /usr/lib/systemd/system/waasbooster.service
         ```
 
@@ -187,13 +188,13 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
         将
 
-        ```
+        ```python
         ExecStart=/usr/local/waasbooster/bin/python3 /usr/local/waasbooster/cpu_booster.py
         ```
 
         修改为
 
-        ```
+        ```python
         ExecStart=/root/miniconda3/envs/waasbooster_env/bin/python3 /usr/local/waasbooster/waas_booster.py
         ```
 
@@ -203,7 +204,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 3. 重新加载systemctl的daemon。
 
-    ```
+    ```bash
     systemctl daemon-reload
     ```
 
@@ -219,19 +220,19 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 1. 使用管理员账号登录WAAS Booster安装节点。
 2. 在安装节点启动WAAS Booster。
 
-    ```
+    ```bash
     systemctl start waasbooster
     ```
 
 3. 查看WAAS Booster状态。
 
-    ```
+    ```bash
     systemctl status waasbooster
     ```
 
     出现类似如下回显信息，状态为**Active: active（running）**，即表示启动成功。
 
-    ![](figures/zh-cn_image_0000002549864187.png)
+    ![systemctl status waasbooster回显，服务状态行显示Active: active（running），表示启动成功](figures/zh-cn_image_0000002549864187.png)
 
 **停止WAAS Booster<a name="section31589018432"></a>**
 
@@ -241,38 +242,39 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 1. 使用管理员账号登录WAAS Booster节点。
 2. 在安装节点停止WAAS Booster。
 
-    ```
+    ```bash
     systemctl stop waasbooster
     ```
 
 3. 查看WAAS Booster是否停止。
 
-    ```
+    ```bash
     systemctl status waasbooster
     ```
 
     出现类似如下回显状态，状态为**Active: inactive \(dead\)**，即表示停止成功。
 
-    ![](figures/zh-cn_image_0000002549744195.png)
+    ![systemctl status waasbooster回显，服务状态行显示Active: inactive（dead），表示停止成功](figures/zh-cn_image_0000002549744195.png)
 
 ### （可选）卸载WAAS Booster<a name="ZH-CN_TOPIC_0000002518224414"></a>
 
 当不再需要使用WAAS Booster时，可以卸载WAAS Booster。
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
->-   当前步骤仅供需要卸载WAAS Booster时参考，不属于部署WAAS Booster的必要操作步骤。
->-   WAAS Booster默认安装路径在“/usr/local/waasbooster/”下，卸载后该路径中所有文件会被删除。
->-   卸载结束后，建议用户手动删除安装包与安装日志，日志位于“/var/log/waasbooster.log”。
+>
+>- 当前步骤仅供需要卸载WAAS Booster时参考，不属于部署WAAS Booster的必要操作步骤。
+>- WAAS Booster默认安装路径在“/usr/local/waasbooster/”下，卸载后该路径中所有文件会被删除。
+>- 卸载结束后，建议用户手动删除安装包与安装日志，日志位于“/var/log/waasbooster.log”。
 
 1. 停止WAAS Booster。
 
-    ```
+    ```bash
     systemctl stop waasbooster
     ```
 
 2. 卸载WAAS Booster。
 
-    ```
+    ```bash
     rpm -e waasbooster
     ```
 
@@ -281,45 +283,46 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 由于某些部署环境不支持网络连接操作，无法安装WAAS Booster所需依赖，因此本节给出不依赖环境的独立RPM包制作过程。
 
 >![](public_sys-resources/icon-note.gif) **说明：** 
->-   制作该RPM包的机器环境需能访问外部网络。
->-   root用户可直接执行下述命令；普通用户执行本小节的操作时，需要在下述命令前加**sudo**提高权限。
+>
+>- 制作该RPM包的机器环境需能访问外部网络。
+>- root用户可直接执行下述命令；普通用户执行本小节的操作时，需要在下述命令前加**sudo**提高权限。
 
 1. 安装软件运行必要依赖。
 
-    ```
+    ```bash
     yum install -y python rpm-build cpio
     ```
 
 2. 下载[Miniconda3安装脚本](https://repo.anaconda.com/miniconda/Miniconda3-py310_25.1.1-2-Linux-aarch64.sh)。
 3. 按默认安装Miniconda3。
 
-    ```
+    ```bash
     sh Miniconda3-py310_25.1.1-2-Linux-aarch64.sh
     ```
 
 4. 在“/etc/profile”里配置安装好的Miniconda3的二进制路径。
     1. 打开文件。
 
-        ```
+        ```bash
         vim /etc/profile
         ```
 
     2. 在文件末尾添加如下内容。
 
-        ```
+        ```txt
         export PATH=$PATH:/root/miniconda3/bin/
         ```
 
     3. 按“Esc”键退出编辑模式，输入 **:wq!**，按“Enter”键保存退出文件。
     4. 使文件生效。
 
-        ```
+        ```bash
         source /etc/profile
         ```
 
 5. 初始化创建好的conda环境。
 
-    ```
+    ```bash
     conda init
     ```
 
@@ -331,75 +334,75 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 7. 使用conda创建Python环境，例如环境命名为waasbooster\_env。
     1. 添加conda-forge channel。
 
-        ```
+        ```bash
         conda config --add channels conda-forge
         ```
 
     2. 使用conda-forge创建python环境。
 
-        ```
+        ```bash
         conda create -n waasbooster_env python=3.9.9 -c conda-forge
         ```
 
 8. 查看waasbooster\_env环境路径。
 
-    ```
+    ```bash
     conda env list
     ```
 
     回显如下图所示：
 
-    ![](figures/zh-cn_image_0000002549864189.png)
+    ![制作独立RPM包时conda env list的回显，列出waasbooster_env环境对应的安装路径](figures/zh-cn_image_0000002549864189.png)
 
 9. 执行命令进入指定虚拟环境。
 
-    ```
+    ```bash
     conda activate waasbooster_env
     ```
 
 10. 创建并进入waasbooster rpm编译路径，例如此处路径为“/home/waasbooster\_rpm\_build”。
     1. 创建路径。
 
-        ```
+        ```bash
         mkdir /home/waasbooster_rpm_build
         ```
 
     2. 进入路径。
 
-        ```
+        ```bash
         cd /home/waasbooster_rpm_build
         ```
 
 11. 拷贝conda环境文件到RPM编译路径。
 
-    ```
+    ```bash
     cp -r /root/miniconda3/envs/waasbooster_env/ /home/waasbooster_rpm_build/
     ```
 
 12. 获取并解压WAAS软件安装包waas-waasbooster.zip。
 
-    获取链接请参见[操作系统和软件要求](#操作系统和软件要求)。
+    获取链接请参见[**表 1** 操作系统和软件要求](#操作系统和软件要求)。
 
-    ```
+    ```bash
     unzip waas-waasbooster.zip
     ```
 
 13. 执行命令安装依赖。
 
-    ```
+    ```bash
     pip3 install -r waas-waasbooster/requirements.txt
     ```
 
 14. 拷贝主程序文件夹waasbooster。
 
-    ```
+    ```bash
     cp -r waas-waasbooster/src/waasbooster/ /home/waasbooster_rpm_build/
     ```
 
 15. 修改waasbooster.service文件。
     1. 打开waasbooster.service文件。
 
-        ```
+        ```bash
         vim /home/waasbooster_rpm_build/waasbooster/waasbooster.service
         ```
 
@@ -407,13 +410,13 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
         将
 
-        ```
+        ```python
         ExecStart=/usr/local/waasbooster/bin/python3 /usr/local/waasbooster/waas_booster.py
         ```
 
         修改为
 
-        ```
+        ```python
         ExecStart=/usr/local/waasbooster/waasbooster_env/bin/python3 /usr/local/waasbooster/waas_booster.py
         ```
 
@@ -555,7 +558,7 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 17. 编译RPM包。
 
-    ```
+    ```bash
     sh build.sh build_booster_package
     ```
 
@@ -564,20 +567,18 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 18. 安装独立RPM包。
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
-    >-   无需安装WAAS Booster运行环境即可部署运行此安装包。
-    >-   安装此RPM包时请添加 **--nodeps**命令，否则将无法安装运行。
+    >- 无需安装WAAS Booster运行环境即可部署运行此安装包。
+    >- 安装此RPM包时请添加 **--nodeps**命令，否则将无法安装运行。
 
-    ```
+    ```bash
     rpm -ivh --nodeps /home/waasbooster_rpm_build/output/waasbooster-1.0.0-1.aarch64.rpm
     ```
 
 19. （可选）卸载独立RPM包。
 
-    ```
+    ```bash
     rpm -e --nodeps waasbooster
     ```
-
-
 
 ## K8s Pod部署WAAS Booster<a name="ZH-CN_TOPIC_0000002549744187"></a>
 
@@ -590,38 +591,38 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     1. 拉取python:3.9.9-slim镜像。
 
-        ```
+        ```bash
         docker pull python:3.9.9-slim
         ```
 
     2. 查看镜像列表。
 
-        ```
+        ```bash
         docker images
         ```
 
         若拉取成功，则应该有如下回显：
 
-        ![](figures/zh-cn_image_0000002549864185.png)
+        ![docker images回显，镜像列表中出现刚拉取的python:3.9.9-slim镜像及其TAG与镜像ID](figures/zh-cn_image_0000002549864185.png)
 
-2. 下载WAAS Booster开源代码包，下载链接请参见[操作系统和软件要求](#操作系统和软件要求)。
+2. 下载WAAS Booster开源代码包，下载链接请参见[**表 1** 操作系统和软件要求](#操作系统和软件要求)。
 
     如选择拉取，则执行以下命令。
 
-    ```
+    ```bash
     git clone -b waasbooster https://gitcode.com/boostkit/waas.git
     ```
 
 3. 构建镜像。
     1. 进入waas文件夹。
 
-        ```
+        ```bash
         cd waas
         ```
 
     2. 构建编译镜像。
 
-        ```
+        ```bash
         docker build -t waasbooster:1.0.0 .
         ```
 
@@ -629,13 +630,13 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
         注意此处需要使用pip拉取依赖，如果需要使用pip代理，则可以使用以下命令指定代理服务器。
 
-        ```
+        ```bash
         docker build --build-arg PIP_PROXY=http://username:password@http.example.com:8080 -t waasbooster:1.0.0 .
         ```
 
         若有特定pip镜像源，则可使用以下命令指定pip镜像源。
 
-        ```
+        ```bash
         docker build \     
           --build-arg PIP_MIRROR=http://mirror.example.com/pypi/simple \     
           --build-arg PIP_TRUST_HOST=http://mirror.example.com \     
@@ -644,13 +645,13 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     3. 查看镜像列表。
 
-        ```
+        ```bash
         docker images
         ```
 
         若回显中有如下类似镜像，则构建成功。
 
-        ![](figures/zh-cn_image_0000002518224420.png)
+        ![docker images回显，镜像列表中出现构建的waasbooster:1.0.0镜像，含TAG、镜像ID与大小](figures/zh-cn_image_0000002518224420.png)
 
         >![](public_sys-resources/icon-note.gif) **说明：** 
         >将构建好的镜像导入业务节点可以访问的镜像仓库，或者手动导入各业务节点。
@@ -661,26 +662,25 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
     1. 执行以下命令导出容器镜像并命名为waasbooster.tar。
 
-        ```
+        ```bash
         docker save -o waasbooster.tar waasbooster:1.0.0
         ```
 
     2. 执行以下命令导入waasbooster.tar。
 
-        ```
+        ```bash
         ctr -n k8s.io image import waasbooster.tar
         ```
 
     3. 执行以下命令查看是否导入成功。
 
-        ```
+        ```bash
         ctr -n k8s.io images list
         ```
 
         若回显中有如下类似镜像，则导入成功。
 
-        ![](figures/zh-cn_image_0000002518384336.png)
-
+        ![ctr -n k8s.io images list回显，镜像列表中出现导入的waasbooster:1.0.0镜像，表示导入成功](figures/zh-cn_image_0000002518384336.png)
 
 ### 部署Pod<a name="ZH-CN_TOPIC_0000002518224410"></a>
 
@@ -692,13 +692,13 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 2. 创建waasbooster Pod。
 
-    ```
+    ```bash
     kubectl apply -f waasbooster.yaml
     ```
 
     若回显如下，则创建成功。
 
-    ![](figures/zh-cn_image_0000002518224422.png)
+    ![kubectl apply -f waasbooster.yaml回显，提示waasbooster资源created，表示Pod创建成功](figures/zh-cn_image_0000002518224422.png)
 
     >![](public_sys-resources/icon-note.gif) **说明：** 
     >Pod创建后，WAAS Booster服务自动启动。
@@ -709,23 +709,26 @@ WAAS Booster是一个专为容器化环境设计的负载动态调度工具，�
 
 1. 查看Pod。
 
-    ```
+    ```bash
     kubectl get pods
     ```
 
     若回显如下，则存在运行的waasbooster Pod。
 
-    ![](figures/zh-cn_image_0000002549864183.png)
+    ![kubectl get pods回显，列表中包含waasbooster Pod且STATUS为Running，表示Pod正常运行](figures/zh-cn_image_0000002549864183.png)
 
 2. 销毁Pod。
 
-    ```
+    ```bash
     kubectl delete -f waasbooster.yaml
     ```
 
     若回显如下，则销毁成功。
 
-    ![](figures/zh-cn_image_0000002549744193.png)
+    ![kubectl delete -f waasbooster.yaml回显，提示waasbooster资源deleted，表示Pod销毁成功](figures/zh-cn_image_0000002549744193.png)
 
+## 修订记录
 
-
+| 文档版本 | 发布日期 | 修改说明 |
+|--|--|--|
+|01 | 2025-12-30 | 第一次正式发布。 |

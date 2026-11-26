@@ -1,4 +1,6 @@
-# 用户指南<a name="ZH-CN_TOPIC_0000002550231305"></a>
+# 用户指南
+
+本文档介绍WAAS Booster的命令行操作与K8s Pod操作，涵盖服务启停、Pod创建与销毁、目录文件权限及日志管理，适用于使用WAAS Booster的用户。
 
 ## 工具使用<a name="ZH-CN_TOPIC_0000002518228422"></a>
 
@@ -10,19 +12,19 @@ WAAS Booster支持的命令行如下所示。
 
 - 启动WAAS Booster。
 
-    ```
+    ```bash
     systemctl start waasbooster
     ```
 
 - 关闭WAAS Booster。
 
-    ```
+    ```bash
     systemctl stop waasbooster
     ```
 
 - 查看WAAS Booster对容器的调整动作。
 
-    ```
+    ```bash
     tail -f /var/log/waasbooster.log
     ```
 
@@ -40,13 +42,13 @@ WAAS Booster支持的命令行如下所示。
 
 - 创建WAAS Booster Pod。
 
-    ```
+    ```bash
     kubectl apply -f waasbooster.yaml
     ```
 
 - 销毁WAAS Booster Pod。
 
-    ```
+    ```bash
     kubectl delete -f waasbooster.yaml
     ```
 
@@ -57,23 +59,21 @@ WAAS Booster支持的命令行如下所示。
     - 若持续监控，可以进入容器查看日志。
         1. 进入容器。
 
-            ```
+            ```bash
             kubectl exec -it waasbooster-daemon-rhwdz bash
             ```
 
         2. 查看日志。
 
-            ```
+            ```bash
             tail -f /var/log/waasbooster.log
             ```
 
     - 若临时查看，则可以通过K8s日志查看。
 
-        ```
+        ```bash
         kubectl logs waasbooster-daemon-rhwdz
         ```
-
-
 
 ## 安全管理<a name="ZH-CN_TOPIC_0000002518228414"></a>
 
@@ -90,7 +90,6 @@ WAAS Booster支持的命令行如下所示。
 |/var/waasbooster/|/var/waasbooster|root:root|750|WAAS Booster的数据存储路径|
 |/var/run/waasbooster_manager/|/var/run/waasbooster_manager/|root:root|644|WAAS Booster的临时文件存储路径|
 
-
 针对K8s Pod部署方式，WAAS Booster目录和文件的权限说明如[**表 2** K8s WAAS Booster Pod目录和文件的权限说明](#K8sWAASBoosterPod目录和文件的权限说明)所示。
 
 **表 2** K8s WAAS Booster Pod目录和文件的权限说明<a id="K8sWAASBoosterPod目录和文件的权限说明"></a>
@@ -101,8 +100,6 @@ WAAS Booster支持的命令行如下所示。
 |/var/log/waasbooster.log|/var/log/waasbooster.log|root:root|640|WAAS Booster产生的日志|
 |/var/run/waasbooster_manager/|/var/run/waasbooster_manager/|root:root|644|WAAS Booster的临时文件存储路径|
 
-
-
 ### 日志管理<a name="ZH-CN_TOPIC_0000002549868175"></a>
 
 >![](public_sys-resources/icon-notice.gif) **须知：** 
@@ -111,5 +108,8 @@ WAAS Booster支持的命令行如下所示。
 - 运行日志输出到操作系统日志文件中。
 - WAAS Booster的日志输出文件为“/var/log/waasbooster.log”。
 
+## 修订记录
 
-
+| 文档版本 | 发布日期 | 修改说明 |
+|--|--|--|
+|01 | 2025-12-30 | 第一次正式发布。 |
